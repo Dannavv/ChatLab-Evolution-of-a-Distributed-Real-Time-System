@@ -27,6 +27,16 @@ Lab 06 focuses on **Engineering for Failure**. In a distributed system, failures
 
 ---
 
+## 📊 Performance Analysis
+![Lab 06 Performance](../../assets/benchmarks/lab-06-chaos-and-resilience-performance.png)
+
+### Chaos Resilience Results
+In **Robust Mode**, we evaluate how the system handles intentional resource exhaustion:
+1. **Failing Fast**: When the API detects high failure rates, the Circuit Breaker trips. This prevents the "Death Spiral" where the server exhausts its own memory trying to retry thousands of doomed messages.
+2. **Queue Stability**: Even with a 500ms artificial delay on the Worker, the ingest path remains responsive. The system prioritizes "Acceptance" into the queue, ensuring the user experience doesn't lag.
+
+---
+
 ## 📊 Resilience Mechanics
 
 ### 1. The Circuit Breaker (Ingress Protection)

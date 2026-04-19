@@ -82,4 +82,4 @@ python3 main.py
 ```
 
 ---
-[Lab 05 Complete. Ready for Phase 3!](../../README.md)
+[Next Lab: Lab 06 (Chaos & Resilience) ➡️](../lab-06-chaos-and-resilience/README.md)

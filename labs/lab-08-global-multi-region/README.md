@@ -24,6 +24,16 @@ Lab 08 explores the "Global" scale of chat systems. We move from a single cluste
 
 ---
 
+## 📊 Performance Analysis
+![Lab 08 Performance](../../assets/benchmarks/lab-08-global-multi-region-performance.png)
+
+### Global Synchronization Results
+In **Robust Mode**, we test the limits of the Region Bridge:
+1. **Regional Isolation**: Notice that the `latency_ms` remains stable for local users in both regions. The US users are not affected by EU network jitter because they never leave their local cluster.
+2. **Bridge Capacity**: The **Forwarded Events** metric shows the bridge effectively moving thousands of messages across the virtual Atlantic without dropping packets, maintaining a sub-200ms global sync time.
+
+---
+
 ## 📊 The Global Challenge
 
 1. **Regional Latency Isolation**: Users in the US should only talk to US servers to avoid "Atlantic Round-Trip" latency (~100ms+) for local ingestion.
