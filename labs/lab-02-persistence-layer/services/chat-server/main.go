@@ -30,7 +30,6 @@ var (
 )
 
 func main() {
-	// DB initialization
 	dbConn := os.Getenv("DB_URL")
 	if dbConn == "" {
 		dbConn = os.Getenv("DATABASE_URL")
@@ -40,7 +39,7 @@ func main() {
 	}
 
 	var err error
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 15; i++ {
 		db, err = sql.Open("postgres", dbConn)
 		if err == nil {
 			err = db.Ping()
@@ -63,7 +62,6 @@ func main() {
 	http.HandleFunc("/health", handleHealth)
 	http.Handle("/metrics", promhttp.Handler())
 
-	// Start shared memory tracking
 	telemetry.StartMemoryTracking(2 * time.Second)
 
 	fmt.Printf("Chat Server %s with DB starting on :8080\n", nodeID)
@@ -99,23 +97,30 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		var msg protocol.Message
 		json.Unmarshal(msgData, &msg)
-		msg.Timestamp = time.Now().UnixMilli()
-		msg.NodeID = nodeID
-
-		saveToDB(msg)
-		broadcast(msg)
+		processMessage(msg)
 	}
 }
 
 func handleSendMessage(w http.ResponseWriter, r *http.Request) {
 	var msg protocol.Message
-	json.NewDecoder(r.Body).Decode(&msg)
+	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	processMessage(msg)
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func processMessage(msg protocol.Message) {
 	msg.Timestamp = time.Now().UnixMilli()
 	msg.NodeID = nodeID
 
+	start := time.Now()
 	saveToDB(msg)
 	broadcast(msg)
-	w.WriteHeader(http.StatusAccepted)
+	
+	duration := float64(time.Since(start).Milliseconds())
+	metrics.MessageLatency.Observe(duration)
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -124,18 +129,20 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveToDB(msg protocol.Message) {
+	start := time.Now()
 	_, err := db.Exec(
 		"INSERT INTO messages (user_id, room_id, content, node_id) VALUES ($1, $2, $3, $4)",
 		msg.UserID, msg.RoomID, msg.Content, msg.NodeID,
 	)
+	duration := float64(time.Since(start).Milliseconds())
+	metrics.DBQueryDuration.Observe(duration)
+
 	if err != nil {
 		log.Println("DB error:", err)
 	}
 }
 
 func broadcast(msg protocol.Message) {
-	start := time.Now()
-
 	clientsMutex.Lock()
 	defer clientsMutex.Unlock()
 
@@ -143,15 +150,12 @@ func broadcast(msg protocol.Message) {
 	data, _ := json.Marshal(msg)
 
 	for client := range clients {
-		err := client.WriteMessage(websocket.TextMessage, data)
-		if err != nil {
-			// Defer in handleWebSocket will handle cleanup
+		if err := client.WriteMessage(websocket.TextMessage, data); err != nil {
 			client.Close()
 		}
 	}
 
 	metrics.MessagesTotal.Inc()
-	metrics.MessageLatency.Observe(float64(time.Since(start).Milliseconds()))
 }
 
 func broadcastSystem(content string) {
@@ -162,5 +166,5 @@ func broadcastSystem(content string) {
 		Timestamp: time.Now().UnixMilli(),
 		NodeID:    nodeID,
 	}
-	broadcast(msg)
+	processMessage(msg)
 }

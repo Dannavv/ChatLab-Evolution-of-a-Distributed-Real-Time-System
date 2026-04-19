@@ -36,4 +36,10 @@ var (
 		Name: "chat_reconnects_total",
 		Help: "Total number of WebSocket reconnections",
 	})
+
+	DBQueryDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "chat_db_query_duration_ms",
+		Help:    "Latency of database queries in milliseconds",
+		Buckets: prometheus.ExponentialBuckets(1, 2, 10), // 1ms to 512ms
+	})
 )
