@@ -42,4 +42,15 @@ var (
 		Help:    "Latency of database queries in milliseconds",
 		Buckets: prometheus.ExponentialBuckets(1, 2, 10), // 1ms to 512ms
 	})
+
+	ProcessingLatency = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "chat_processing_latency_ms",
+		Help:    "Internal application logic latency (pre-I/O)",
+		Buckets: prometheus.LinearBuckets(0, 0.5, 10), // High precision for logic
+	})
+
+	DBErrorsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "chat_db_errors_total",
+		Help: "Total number of database operation failures",
+	})
 )
