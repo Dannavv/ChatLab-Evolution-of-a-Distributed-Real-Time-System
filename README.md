@@ -7,17 +7,23 @@ The structure is intentionally progressive: each lab introduces a new architectu
 
 ---
 
-## 🧪 Robust Performance Suite
-The project includes a centralized **Robust Stress Test** suite. This suite performs a standardized, high-pressure evaluation of every lab architecture to identify its "Efficiency Cliff."
+## 🧪 Research Benchmark Suite
+The project includes a centralized benchmark suite driven by workload manifests in `benchmark/workloads/`. This keeps experiments reproducible while allowing controlled scenario changes.
 
-**Suite Parameters:**
-- **Hardware Limit**: 0.5 CPU / 512MB RAM per node.
-- **Max Load**: 2,500 Virtual Users (VUs).
-- **Duration**: 4.0 Minutes (Accelerated Ramp).
-- **Tooling**: Python Orchestrator + k6 + Prometheus.
+**Phase 0/1 Contract:**
+- **Benchmark Driver**: Python orchestrator + k6 + Prometheus scrape loop.
+- **Workload Profiles**: YAML manifests (`robust_steady`, `latency_probe`, `spike_recovery`).
+- **Per-Run Artifacts**: `metadata.json`, `timeseries.csv`, `k6_summary.json` in `benchmark/results/raw/<run_id>/`.
+- **Compatibility Output**: `results/<lab>_robust_report.csv` for existing visualizer flow.
 
 ```bash
 python3 main.py
+```
+
+Direct execution:
+
+```bash
+python3 benchmark/orchestrator.py lab-04-scalable-monolith robust_steady
 ```
 
 ---

@@ -12,10 +12,14 @@ venv/
 .env
 
 # Benchmarking Artifacts
-results/*.csv
-results/*.json
+*.txt
+*.csv
+*.json
 results/lab-*_robust_report.csv
-# assets/benchmarks/*.png (Commented out: we NEED these for READMEs)
+
+# Asset Whitelist (Required for README rendering)
+!assets/benchmarks/*.png
+!labs/*/assets/benchmarks/*.png
 
 # Docker
 .docker/

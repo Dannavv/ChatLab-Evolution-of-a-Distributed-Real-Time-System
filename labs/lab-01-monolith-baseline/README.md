@@ -1,72 +1,87 @@
-[🏠 Home](../../README.md)
+[🏠 Home](../../README.md) | [Next Lab (Lab 02) ➡️](../lab-02-persistence-layer/README.md)
 
-# Lab 01: The Stateful Monolith 
-## *A Deep Dive into Vertical Constraints*
+# Lab 01: The Monolith Baseline
+## *The In-Memory Monolith and the Efficiency Cliff*
 
-This lab establishes the baseline for a single-node, in-memory real-time chat server. While seemingly simple, the architecture reveals profound systems-level constraints that dictate the evolution of all distributed systems.
+### 🔴 The Problem
+As real-time systems scale, they encounter **Stateful Bottlenecks**. In a naive monolith, user connections, room state, and message history are all stored in the server's local RAM. 
+- **Fatal Flaw**: If the server restarts, all data is lost.
+- **Scaling Limit**: Since state is local, you cannot add a second server (Server B wouldn't know about Server A's users).
+- **Concurrency Tax**: High-concurrency leads to massive "Lock Contention" on shared memory structures.
 
----
-
-## 🔬 Technical Deep Dive
-
-### 1. The Upgrade Lifecycle
-A WebSocket connection begins as a standard HTTP/1.1 request. The server must "upgrade" this connection to a persistent TCP stream.
-- **Protocol**: `HTTP/1.1 101 Switching Protocols`
-- **Mechanism**: The server hijacks the underlying TCP connection from the HTTP server's control and hands it to the `gorilla/websocket` handler.
-- **Constraint**: Each upgrade consumes a file descriptor and allocates a goroutine to manage the read loop.
-
-### 2. Memory Topography
-In a monolith, all state is local to the process heap.
-- **Connection Map**: `map[*websocket.Conn]bool` stores pointers to connection objects.
-- **Heap Pressure**: With 10k connections, the Go Garbage Collector (GC) must scan this map frequently. Even if no messages are sent, the "Stop-the-World" phase of GC can increase as the heap size grows.
-- **Volatility**: Because state is in-memory, a single `SIGKILL` or crash results in a 100% loss of connection state and message history.
-
-### 3. Concurrency & Serialized Execution
-The server uses a `sync.Mutex` to protect the connection map. This is a **pessimistic lock**.
-- **The Mutex Cost**: Every join, leave, and message broadcast must acquire this lock. 
-- **Sequential Broadcast**: 
-  ```go
-  for client := range clients {
-      client.WriteMessage(data)
-  }
-  ```
-  This is a critical path. If `WriteMessage` blocks due to network backpressure on a single slow client, the entire broadcast loop stalls. This is known as **Head-of-Line Blocking** at the application layer.
-
-### 4. Metrics & Observability
-We track the system's "pulse" via Prometheus:
-- `chat_active_connections`: Current vertical scale.
-- `chat_message_latency_ms`: The delta between message receipt and final broadcast completion.
-- `chat_memory_bytes`: Measures heap allocation growth.
+### 🟢 The Approach
+We begin by building a **Baseline Monolith**. This is a single-process Go server that handles WebSockets and message broadcasting in-process. This lab serves as our "Control Group" for all future benchmarking—it shows us the absolute maximum speed of a system before we introduce the complexity (and latency) of distributed databases and networks.
 
 ---
 
-## 📊 Performance Analysis
-![Lab 01 Performance](../../assets/benchmarks/lab-01-performance.png)
+### 🏗️ Architecture
+The system is a pure, single-process entity. No external databases, no caches, just Go.
 
-### The "Robust Mode" Stress Test Results
-The data above reveals the scientific "breaking point" of the monolith architecture under a 0.5 CPU constraint:
+![Lab 01 Architecture](assets/benchmarks/architecture.png)
+*Figure 1: High-level architectural view of the Stateful Monolith.*
 
-1. **Efficiency Degradation**: Notice how the **Efficiency (%)** curve falls off as scale increases. This is the "O(N) Tax"—the server spends more time iterating through connections than actually processing new messages.
-2. **The Latency Wall**: At approximately **1,200 VUs**, latency crosses the 1s "Unusable" threshold. This is where the broadcast loop's duration exceeds the message arrival rate, causing catastrophic head-of-line blocking.
-3. **Throughput Saturation**: The **Messages/Second** graph plateaus early. Even if we add more users, the server cannot push more data because it is CPU-bound by the serialization logic.
-
----
-
-## 🏗️ Architecture "Art"
-Imagine the server as a single room with one door (the Mutex). Everyone must enter through the door, and when the room leader (the Broadcast Loop) wants to speak, they must walk to every single person and whisper the message. If one person is slow to listen, the leader stands still, and no one else gets their message.
+### 💻 Implementation
+- **Language**: Go 1.21+
+- **Concurrency**: Goroutines for each connection.
+- **State Management**: `sync.RWMutex` protecting global maps.
+- **Communication**: Fan-out broadcast loop within the websocket handler.
 
 ---
 
-## 🚀 Run it
+### 📊 Performance Analysis
+![Modern Dashboard](assets/benchmarks/modern_quad_dashboard.png)
+*Figure 2: Unified view of Latency, Load, Throughput, and Resource Utilization.*
+
+#### Analysis:
+1. **The Concurrency Wall**: Despite sub-5ms latency at low load, the server hits a "Cliff" where latency spikes exponentially. This is the **Mutex Contention** in action—too many threads fighting for the same memory lock.
+2. **The "Silent Failure" Paradox**: 
+   ![Reliability Loss](assets/benchmarks/modern_reliability_loss.png)
+   *Figure 3: The Throughput Deficit shows massive loss, yet the 'Dropped Total' counter is 0.*
+   
+   **Why are drops reported as 0?**  
+   In this baseline monolith, we have no internal queues or rate limiters. When the server saturates, messages don't get "dropped" by the application; they are **ignored by the saturated TCP stack** or blocked by the Go runtime's scheduler. Because the application-level logic never even sees these messages, the `dropped_total` Prometheus counter never increments. This is a **Silent Failure**.
+
+3. **Latency Scaling Profile**:
+   ![Latency Scaling](assets/benchmarks/modern_latency_scaling.png)
+   *Figure 4: Median latency response isolating the impact of concurrency (VUs) on system speed.*
+
+---
+
+### 🔬 Key Lessons
+- **Locks are Expensive**: Even the fastest Go code is limited by shared state synchronization.
+- **Speed != Scale**: A system can be extremely fast (low latency) but fail to scale (handle high concurrency).
+- **The Need for External State**: To grow beyond this, we must move state out of the process and into a persistent layer (Lab 02).
+
+---
+
+### 🚀 Commands
+**Start the Lab:**
 ```bash
-docker-compose up --build
+cd labs/lab-01-monolith-baseline
+docker-compose up --build -d
 ```
 
-## 🧪 Benchmark
-Run the "Robust Mode" flight recorder from the project root:
+**Run Automated Benchmark:**
 ```bash
-python3 main.py
+python3 labs/lab-01-monolith-baseline/benchmark/run.py
+```
+
+**Generate Modern Graphs:**
+```bash
+python3 labs/lab-01-monolith-baseline/benchmark/plot.py
 ```
 
 ---
-[Next Lab: Lab 02 (The Persistence Chronicle) ➡️](../lab-02-persistence-layer/README.md)
+
+### 📂 Folder Structure
+- `services/chat-server/`: The core Go application.
+  - `main.go`: Monolithic logic (Websockets, Broadcast, State).
+  - `static/`: The frontend UI for manual testing.
+- `benchmark/`: K6 scripts and Python analytics.
+  - `run.py`: The automated benchmark orchestrator.
+  - `plot.py`: The GitHub-Modern visualization engine.
+- `assets/benchmarks/`: Permanent storage for performance graphs.
+- `docker-compose.yml`: Infrastructure-as-Code for the baseline.
+
+---
+[Next Lab: Lab 02 (Persistence Layer) ➡️](../lab-02-persistence-layer/README.md)

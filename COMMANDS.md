@@ -59,58 +59,33 @@ cd labs/lab-10-microservices-migration && docker-compose up --build -d
 
 ---
 
-## 📈 2. Benchmarking (The Orchestrator)
-The `orchestrator.py` script automates the full testing lifecycle (Start -> Load Test -> Scrape -> Shutdown).
+## 📈 2. Benchmarking (Manifest-Driven)
+The orchestrator automates: startup -> load generation -> metrics scrape -> teardown.
 
-### Standard Benchmark (10 VUs)
+### Interactive Benchmark Launcher
 ```bash
-python3 benchmark/orchestrator.py --labs lab-01-monolith-baseline
+python3 main.py
 ```
 
-### Scaling Test (10, 100, 500, 1000 VUs)
+### Direct Run (Lab + Workload)
 ```bash
-python3 benchmark/orchestrator.py --scaling --labs lab-01-monolith-baseline
+python3 benchmark/orchestrator.py lab-01-monolith-baseline robust_steady
 ```
 
-### ☢️ Robust Mode (Smooth Ramp-up to 2500 VUs + Live Telemetry)
-*Recommended for generating the "Manuscript" performance graphs.*
+### Available Workloads
 ```bash
-python3 benchmark/orchestrator.py --Robust-mode --labs lab-02-persistence-layer
+ls benchmark/workloads
 ```
 
-### Lab 04 Benchmark Target
+### Example Scenarios
 ```bash
-python3 benchmark/orchestrator.py --labs lab-04-scalable-monolith
+python3 benchmark/orchestrator.py lab-04-scalable-monolith latency_probe
+python3 benchmark/orchestrator.py lab-06-chaos-and-resilience spike_recovery
 ```
 
-### Lab 05 Benchmark Target
+### Raw Artifact Location
 ```bash
-python3 benchmark/orchestrator.py --labs lab-05-cloud-native-chat-infrastructure
-```
-
-### Lab 06 Benchmark Target
-```bash
-python3 benchmark/orchestrator.py --labs lab-06-chaos-and-resilience
-```
-
-### Lab 07 Benchmark Target
-```bash
-python3 benchmark/orchestrator.py --labs lab-07-real-time-presence-and-delivery
-```
-
-### Lab 08 Benchmark Target
-```bash
-python3 benchmark/orchestrator.py --labs lab-08-global-multi-region
-```
-
-### Lab 09 Benchmark Target
-```bash
-python3 benchmark/orchestrator.py --labs lab-09-message-security
-```
-
-### Lab 10 Benchmark Target
-```bash
-python3 benchmark/orchestrator.py --labs lab-10-microservices-migration
+ls benchmark/results/raw
 ```
 
 ---
@@ -125,7 +100,7 @@ python3 benchmark/visualize.py
 ```
 
 ### Generate Comparison Report (Markdown)
-*Aggregates all k6 JSON results into a single comparison table.*
+*Aggregates latest raw run summaries (with fallback to legacy results) into a comparison table.*
 ```bash
 python3 benchmark/generate-report.py
 ```

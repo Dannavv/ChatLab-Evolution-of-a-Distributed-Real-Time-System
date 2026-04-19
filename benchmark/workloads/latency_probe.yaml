@@ -1,0 +1,16 @@
+name: latency_probe
+description: Lower-concurrency profile optimized for latency and tail behavior.
+duration_seconds: 180
+warmup_seconds: 5
+scrape_interval_seconds: 1
+message_interval_ms: 2500
+seed: 42
+stages:
+  - duration: 20s
+    target_vus: 100
+  - duration: 60s
+    target_vus: 300
+  - duration: 60s
+    target_vus: 500
+  - duration: 40s
+    target_vus: 0
