@@ -1,0 +1,14 @@
+health_url: "http://localhost:8084/health"
+metrics_url: "http://localhost:8084/metrics"
+ws_url: "ws://localhost:8084/ws"
+scrape_interval_seconds: 1
+
+scenarios:
+  scaling_monolith:
+    description: "Benchmark high-concurrency monolith with worker pool"
+    message_interval_ms: 1000
+    stages:
+      - duration: "1m"
+        target_vus: 200
+      - duration: "1m"
+        target_vus: 500

@@ -1,0 +1,28 @@
+{
+  "run_id": "lab06__resilience_stress__20260419T121527Z",
+  "lab": "lab-06-chaos-and-resilience",
+  "scenario": "resilience_stress",
+  "started_at_utc": "2026-04-19T12:15:27.811123Z",
+  "workload": {
+    "health_url": "http://localhost:8086/health",
+    "metrics_url": "http://localhost:8086/metrics",
+    "ws_url": "ws://localhost:8086/ws",
+    "scrape_interval_seconds": 1,
+    "scenarios": {
+      "resilience_stress": {
+        "description": "Benchmark Resilient Ingest with Circuit Breakers & Retries",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 200
+          },
+          {
+            "duration": "1m",
+            "target_vus": 800
+          }
+        ]
+      }
+    }
+  }
+}

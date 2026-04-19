@@ -12,9 +12,9 @@ venv/
 .env
 
 # Benchmarking Artifacts
-*.txt
-*.csv
-*.json
+# *.txt
+# *.csv
+# *.json
 results/lab-*_robust_report.csv
 
 # Asset Whitelist (Required for README rendering)

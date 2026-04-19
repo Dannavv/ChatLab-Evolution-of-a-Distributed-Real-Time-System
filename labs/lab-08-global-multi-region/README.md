@@ -1,120 +1,59 @@
-[🏠 Home](../../README.md) | [⬅️ Previous (Lab 07)](../lab-07-real-time-presence-and-delivery/README.md)
+[🏠 Home](../../README.md) | [⬅️ Previous (Lab 07)](../lab-07-real-time-presence-and-delivery/README.md) | [Next Lab (Lab 09) ➡️](../lab-09-message-security/README.md)
 
-# Lab 08: Global Multi-Region Distribution
-## *Regional Isolation, Cross-Continental Bridges, and Event Deduplication*
+# Lab 08: Global Multi-Region
+## *Geographic Latency and the Regional Bridge*
 
-Lab 08 explores the "Global" scale of chat systems. We move from a single cluster to a multi-region deployment spanning the **US** and **EU**. The objective is to achieve low local latency while maintaining global message consistency.
+### 🔬 The Hypothesis
+> "By using Regional Redis clusters and a specialized 'Global Bridge,' we can maintain sub-10ms latency for users in the same region while ensuring global delivery. This architecture will prove that cross-region latency is bounded by the speed of light, and our goal is to minimize the 'Synchronous Wait' for distant regions."
 
----
-
-## 🏗️ Architecture
-
-```
-         🌍 US REGION                        🌉 GLOBAL BRIDGE                    🇪🇺 EU REGION
-    ┌────────────────────┐              ┌────────────────────┐              ┌────────────────────┐
-    │   Chat Node US     │◄────────────►│   Region Bridge    │◄────────────►│   Chat Node EU     │
-    │ (Local Ingest)     │              │ (Stream Sync)      │              │ (Local Ingest)     │
-    └────────┬───────────┘              └────────────────────┘              └────────┬───────────┘
-             │                                                                       │
-    ┌────────▼───────────┐                                                  ┌────────▼───────────┐
-    │   Redis US         │                                                  │   Redis EU         │
-    │ (Regional Stream)  │                                                  │ (Regional Stream)  │
-    └────────────────────┘                                                  └────────────────────┘
-```
+### 🔴 The Problem: The Global Latency Wall
+In previous labs, all users were in one "Data Center."
+- **The Reality**: A user in Europe (EU) should not wait for a server in the USA (US) to acknowledge their message.
+- **The Solution**: **Regional Isolation**. Users connect to their local region. A "Bridge Service" asynchronously syncs messages between the US and EU clusters.
 
 ---
 
-## 📊 Performance Analysis
-![Lab 08 Performance](../../assets/benchmarks/lab-08-global-multi-region-performance.png)
-
-### Global Synchronization Results
-In **Robust Mode**, we test the limits of the Region Bridge:
-1. **Regional Isolation**: Notice that the `latency_ms` remains stable for local users in both regions. The US users are not affected by EU network jitter because they never leave their local cluster.
-2. **Bridge Capacity**: The **Forwarded Events** metric shows the bridge effectively moving thousands of messages across the virtual Atlantic without dropping packets, maintaining a sub-200ms global sync time.
+### 🏗️ Architecture
+![Lab 08 Architecture](assets/benchmarks/architecture.png)
+*Figure 1: The Global Mesh. US Cluster <-> Global Bridge <-> EU Cluster.*
 
 ---
 
-## 📊 The Global Challenge
+### 📊 Performance Analysis
+![Modern Dashboard](assets/benchmarks/modern_quad_dashboard.png)
+*Figure 2: Performance mesh showing Regional vs. Global latency distribution.*
 
-1. **Regional Latency Isolation**: Users in the US should only talk to US servers to avoid "Atlantic Round-Trip" latency (~100ms+) for local ingestion.
-2. **Cross-Region Bridge**: A specialized service (The Bridge) monitors the US stream and replicates events to the EU stream (and vice versa).
-3. **Event Deduplication**: To prevent infinite loops (US ➡️ Bridge ➡️ EU ➡️ Bridge ➡️ US), each node uses a `seenEvents` bloom-filter/map to drop messages it has already processed.
-
-### Robust Benchmark Focus
-In **Robust Mode**, we measure the **Synchronization Overhead**.
-- **Local Latency**: We verify that US users still get sub-10ms ingest times.
-- **Deduplication Efficiency**: We monitor the `chat_global_duplicate_events_total` metric to ensure the bridge isn't creating redundant traffic.
-
----
-
-## 📐 Distributed Contract (Explicit)
-
-### Consistency Model
-- **Global timeline**: eventual consistency across regions.
-- **Regional timeline**: near-real-time consistency inside each region.
-
-### Delivery Semantics
-- **Cross-region bridge replication**: at-least-once.
-- **Client-visible message stream**: effectively-once when event IDs are deduplicated by bridge/node caches.
-
-### Duplicate Delivery and Reordering
-- Duplicate delivery can occur during retries and bridge reconnect.
-- Nodes must drop already-seen event IDs.
-- Reordering is possible during lag or replay; clients should order by `(event_time, event_id)`.
-
-### User-Visible Behavior Under Failure
-1. **Region A down mid-message**:
-    - Users pinned to Region A disconnect or fail over.
-    - Users in Region B continue local chat.
-    - Cross-region propagation resumes after Region A recovery.
-2. **Network partition between regions**:
-    - Both regions continue in isolation mode.
-    - Global timeline diverges temporarily.
-    - Reconciliation merges streams once the bridge is restored.
-3. **Clock skew between nodes**:
-    - Messages may appear reordered near merge boundaries.
-    - Event IDs prevent duplicate replay even with skewed timestamps.
-4. **Partial replication (lagging region)**:
-    - Lagging region sees delayed remote messages.
-    - Local region writes remain fast and available.
-
-### Routing Strategy
-- Baseline: nearest-region ingress.
-- Production path: sticky region affinity per user/session.
-- Failover: route to secondary region when primary is unhealthy.
-- Progressive policy: combine affinity + latency + load to avoid overloaded regions.
-
-### Data Ownership
-- Recommended model in this lab: **home-region write ownership**.
-- Remote regions consume replicated events for read experience.
-- This avoids globally synchronous writes on every message.
-
-### Cost Awareness
-- Keep high-volume ephemeral state regional (typing/presence heartbeats).
-- Replicate only durable chat events globally.
-- Monitor bridge throughput and cross-region error rate as first-order cost signals.
+#### 🧐 Reading the Signal:
+1.  **The Regional Speed Trap**: Notice the "Local" latency is extremely low. This proves our regional clusters are working independently.
+2.  **The Bridge Bottleneck**:
+   ![Latency Scaling](assets/benchmarks/modern_latency_scaling.png)
+   *Figure 3: Global Latency Profile. You will see a distinct "Step" in latency (~150ms+). This is the simulated physical distance between the US and EU.*
 
 ---
 
-## 🔗 Endpoints
-- **Chat UI (US Region)**: [http://localhost:8090](http://localhost:8090)
-- **Chat UI (EU Region)**: [http://localhost:8091](http://localhost:8091)
-- **Global Bridge Status**: [http://localhost:8092/status](http://localhost:8092/status)
-- **Prometheus (Global)**: [http://localhost:9096](http://localhost:9096)
+### 📉 Reliability Audit
+![Reliability Loss](assets/benchmarks/modern_reliability_loss.png)
+*Figure 4: Throughput Deficit showing "Bridge Saturation."*
+
+#### 🧐 Reading the Signal:
+- **Asynchronous Lag**: The deficit in Figure 4 represents the **Sync Lag**. If the bridge cannot keep up with the global message volume, users in the EU will see US messages with a delay. The red area shows where the bridge buffer is beginning to overflow.
 
 ---
 
-## 🚀 Run the Lab
+### 🔬 Key Lessons
+- **Speed of Light is the Hardest Constraint**: You can scale CPU, but you can't scale the speed of a fiber optic cable across the Atlantic.
+- **Eventual Consistency is Mandatory**: At a global scale, synchronous writes are impossible. You must embrace asynchronous delivery.
 
+---
+
+### 🚀 Commands
 ```bash
-cd labs/lab-08-global-multi-region
+# Start the global multi-region stack
 docker-compose up --build -d
-```
 
-## 🧪 Robust Benchmark
-```bash
-python3 main.py
+# Run local benchmark
+python3 labs/lab-08-global-multi-region/benchmark/run.py
 ```
 
 ---
-[Next Lab: Lab 09 (Security & Encryption) ➡️](../lab-09-message-security/README.md)
+[Next Lab: Lab 09 (Message Security) ➡️](../lab-09-message-security/README.md)

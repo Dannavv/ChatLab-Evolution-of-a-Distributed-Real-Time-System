@@ -1,0 +1,28 @@
+{
+  "run_id": "lab08__global_scaling__20260419T122149Z",
+  "lab": "lab-08-global-multi-region",
+  "scenario": "global_scaling",
+  "started_at_utc": "2026-04-19T12:21:49.874672Z",
+  "workload": {
+    "health_url": "http://localhost:8090/health",
+    "metrics_url": "http://localhost:8090/metrics",
+    "ws_url": "ws://localhost:8090/ws",
+    "scrape_interval_seconds": 1,
+    "scenarios": {
+      "global_scaling": {
+        "description": "Benchmark Global Multi-Region synchronization via Regional Bridge",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 100
+          },
+          {
+            "duration": "1m",
+            "target_vus": 400
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "run_id": "lab09__security_overhead__20260419T122458Z",
+  "lab": "lab-09-message-security",
+  "scenario": "security_overhead",
+  "started_at_utc": "2026-04-19T12:24:58.768143Z",
+  "workload": {
+    "health_url": "http://localhost:8094/health",
+    "metrics_url": "http://localhost:8094/metrics",
+    "ws_url": "ws://localhost:8094/ws",
+    "scrape_interval_seconds": 1,
+    "scenarios": {
+      "security_overhead": {
+        "description": "Benchmark E2EE Security Overhead & Key Rotation",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 100
+          },
+          {
+            "duration": "1m",
+            "target_vus": 400
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "run_id": "lab02__scaling_monolith__20260419T120908Z",
+  "lab": "lab-02-persistence-layer",
+  "scenario": "scaling_monolith",
+  "started_at_utc": "2026-04-19T12:09:08.606768Z",
+  "workload": {
+    "health_url": "http://localhost:8084/health",
+    "metrics_url": "http://localhost:8084/metrics",
+    "ws_url": "ws://localhost:8084/ws",
+    "scrape_interval_seconds": 1,
+    "scenarios": {
+      "scaling_monolith": {
+        "description": "Benchmark high-concurrency monolith with worker pool",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 200
+          },
+          {
+            "duration": "1m",
+            "target_vus": 500
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "run_id": "lab10__microservices_mesh__20260419T122801Z",
+  "lab": "lab-10-microservices-migration",
+  "scenario": "microservices_mesh",
+  "started_at_utc": "2026-04-19T12:28:01.515784Z",
+  "workload": {
+    "health_url": "http://localhost:8100/health",
+    "metrics_url": "http://localhost:8100/metrics",
+    "ws_url": "ws://localhost:8100/ws",
+    "scrape_interval_seconds": 1,
+    "scenarios": {
+      "microservices_mesh": {
+        "description": "Benchmark Microservices Mesh (Gateway -> Message Service -> DB)",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 100
+          },
+          {
+            "duration": "1m",
+            "target_vus": 400
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,85 +1,58 @@
-[🏠 Home](../../README.md) | [⬅️ Previous (Lab 08)](../lab-08-global-multi-region/README.md)
+[🏠 Home](../../README.md) | [⬅️ Previous (Lab 08)](../lab-08-global-multi-region/README.md) | [Next Lab (Lab 10) ➡️](../lab-10-microservices-migration/README.md)
 
-# Lab 09: Message Security and Trust
-## *Encrypted Envelopes, Key Rotation, and Replay Defense*
+# Lab 09: Message Security
+## *E2EE, Key Rotation, and the Security Tax*
 
-Lab 09 secures the chat mesh itself. Messages are encrypted before they leave the sending node, signed with an HMAC tied to the room key version, verified on every node, and rejected when the signature, replay history, or rate controls fail.
+### 🔬 The Hypothesis
+> "Implementing End-to-End Encryption (E2EE) and frequent 'Key Rotations' will significantly increase the CPU utilization per message. This architecture will prove that while the system remains durable and distributed, the cryptographic overhead will reduce the maximum concurrent users (VUs) by >30% compared to the unsecured baseline."
 
----
-
-## 🏗️ Architecture
-
-```
-                                  ┌───────────────────┐
-                                  │   Master Secret   │
-                                  └─────────┬─────────┘
-                                            │
-        ┌──────────────┐          ┌─────────┴─────────┐          ┌──────────────┐
-        │  Secure Node ├─────────►│   Secure Mesh     │◄─────────┤  Secure Node │
-        │ (AES-GCM/MAC)│          │ (Shared Trust)    │          │ (AES-GCM/MAC)│
-        └──────────────┘          └───────────────────┘          └──────────────┘
-```
+### 🔴 The Problem: The Transparent Mesh
+In previous labs, messages were sent in plain text.
+- **The Risk**: Anyone with access to Redis or the Database can read private conversations.
+- **The Solution**: **AES-GCM Encryption**. Messages are encrypted on the server (or client) using regional master keys. These keys are rotated every 10 seconds to minimize the impact of a potential breach.
 
 ---
 
-## 📊 Performance Analysis
-![Lab 09 Performance](../../assets/benchmarks/lab-09-message-security-performance.png)
-
-### The "Security Tax" (Verified)
-In **Robust Mode**, we've measured the absolute overhead of cryptographic trust.
-
-1. **Cryptographic Jitter**: At **2,500 concurrent users**, the average latency climbed to **~60ms**. This is a 200% increase over the non-secure cluster (Lab 05). This is the "Security Tax"—the CPU cost of performing an AES-GCM seal and HMAC signature on every single broadcast.
-2. **Memory Stability**: Despite the cryptographic load, memory usage remained stable at **~55MB** per node. This proves that Go's standard library crypto is highly memory-efficient, even if it is CPU-bound.
-3. **Efficiency Cliff**: We observe a steeper latency curve in this lab. As the 0.5 CPU limit is reached, the cryptographic operations begin to queue up, leading to a predictable performance trade-off for security.
+### 🏗️ Architecture
+![Lab 09 Architecture](assets/benchmarks/architecture.png)
+*Figure 1: The Secure Mesh. Message -> [AES-GCM Encrypt] -> Redis -> [AES-GCM Decrypt] -> Client.*
 
 ---
 
-## 🔐 Security Features
-- **AES-GCM Encryption**: Payloads are encrypted per-room using keys derived from the Master Secret.
-- **HMAC Signatures**: Every message envelope is signed to prevent tampering during transit across the mesh.
-- **Key Rotation**: Administrators can trigger `/rotate-key` to generate new keys. Try this during a stress test: `curl -X POST http://localhost:8094/rotate-key`.
-- **Rate Limiting**: Per-user token buckets protect the system from cryptographically expensive flood attacks (Standardized to 100 req/10s for benchmarking).
+### 📊 Performance Analysis
+![Modern Dashboard](assets/benchmarks/modern_quad_dashboard.png)
+*Figure 2: Performance mesh showing the "Security Tax" under load.*
+
+#### 🧐 Reading the Signal:
+1.  **CPU Spike**: Notice the "Memory" and "Processing" graphs are higher than Lab 03. Cryptography is a CPU-intensive operation.
+2.  **The Rotation Penalty**:
+   ![Latency Scaling](assets/benchmarks/modern_latency_scaling.png)
+   *Figure 3: Latency Profile. You will see recurring "Jitter" or spikes every 10 seconds. This is the **Key Rotation Window**—the moment the system generates new secrets and propagates them across the mesh.*
 
 ---
 
-## 📐 Delivery and Consistency Contract
+### 📉 Reliability Audit
+![Reliability Loss](assets/benchmarks/modern_reliability_loss.png)
+*Figure 4: Throughput Deficit showing "Cryptographic Saturation."*
 
-- **Consistency**: eventual consistency across secure nodes.
-- **Delivery**: at-least-once over the secure mesh transport.
-- **Duplicates**: expected during retries; replay cache and message IDs must suppress duplicates.
-- **Reordering**: possible under key rotation or reconnect windows; clients should sort by event time/id.
-
-### Failure Semantics
-1. **Node loss during encrypted broadcast**:
-        - Surviving nodes continue service with current key version.
-        - Rejoining node must catch up and validate envelopes before rebroadcast.
-2. **Key rotation during network jitter**:
-        - Messages signed with old keys remain valid within configured grace window.
-        - Messages outside trust window are rejected and counted as security drops.
-3. **Replay attempts**:
-        - Duplicate message IDs are rejected without rebroadcast.
-4. **Signature mismatch/tampering**:
-        - Envelope is dropped.
-        - Security error metrics must increase.
-
-## 🔗 Endpoints
-- **Secure Chat UI (Node 01)**: [http://localhost:8094](http://localhost:8094)
-- **Secure Chat UI (Node 02)**: [http://localhost:8095](http://localhost:8095)
-- **Status Dashboard**: [http://localhost:8094/status](http://localhost:8094/status)
-- **Prometheus (Security)**: [http://localhost:9097](http://localhost:9097)
+#### 🧐 Reading the Signal:
+- **Throughput Decay**: The red area in Figure 4 shows where the CPU can no longer keep up with the encryption/decryption demands. The "Security Tax" has effectively lowered our system's maximum capacity.
 
 ---
 
-## 🚀 Run the Lab
+### 🔬 Key Lessons
+- **Security is a Resource**: You cannot have E2EE for free. You must budget for the additional CPU cycles.
+- **Rotation Frequency Trade-off**: Shorter rotation windows increase security but create more "System Jitter."
 
+---
+
+### 🚀 Commands
 ```bash
-cd labs/lab-09-message-security
+# Start the secure chat stack
 docker-compose up --build -d
-```
 
-## 🧪 Robust Benchmark
-```bash
-python3 main.py
+# Run local benchmark
+python3 labs/lab-09-message-security/benchmark/run.py
 ```
 
 ---

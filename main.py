@@ -1,66 +1,83 @@
 import os
+import subprocess
 import sys
-from benchmark.orchestrator import run_benchmark, get_available_labs, get_available_workloads
+from pathlib import Path
 
-def show_menu(labs, workloads, selected_workload):
-    print("\n" + "="*60)
-    print("🚀 CHATLAB RESEARCH BENCHMARK SUITE")
-    print("="*60)
-    print("WORKLOAD MODE:")
-    print(f"  • Active workload: {selected_workload}")
-    if workloads:
-        print(f"  • Available      : {', '.join(workloads)}")
-    print("-" * 60)
-    print("SELECT A LAB TO BENCHMARK:")
-    print("0) [RUN ALL LABS]")
-    print("w) [CHANGE WORKLOAD]")
+ROOT_DIR = Path(__file__).resolve().parent
+LABS_DIR = ROOT_DIR / 'labs'
+
+def get_labs_with_benchmarks():
+    labs = []
+    if not LABS_DIR.exists():
+        return labs
+    
+    # Get all lab directories that contain a benchmark/run.py
+    for lab_folder in sorted(LABS_DIR.iterdir()):
+        if lab_folder.is_dir() and (lab_folder / 'benchmark' / 'run.py').exists():
+            labs.append(lab_folder.name)
+    return labs
+
+def run_lab_benchmark(lab_name, scenario=None):
+    lab_run_script = LABS_DIR / lab_name / 'benchmark' / 'run.py'
+    if not lab_run_script.exists():
+        print(f"❌ No benchmark found for {lab_name}")
+        return
+
+    cmd = [sys.executable, str(lab_run_script)]
+    if scenario:
+        cmd.extend(['--scenario', scenario])
+    else:
+        cmd.append('--all')
+
+    print(f"\n🚀 Starting benchmark for: {lab_name.upper()}")
+    print("-" * 40)
+    try:
+        # Run and stream output to console
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Benchmark failed for {lab_name}: {e}")
+    except KeyboardInterrupt:
+        print(f"\n⚠️  Benchmark interrupted by user.")
+
+def show_menu(labs):
+    print("\n" + "═"*60)
+    print(" 🚀 CHATLAB: DISTRIBUTED SYSTEMS RESEARCH CENTER")
+    print(" 📡 Global Orchestrator")
+    print("═"*60)
+    print("0) [RUN ALL LABS (Full Regression Suite)]")
     for i, lab in enumerate(labs, 1):
-        print(f"{i}) {lab}")
+        # Human readable name
+        display_name = lab.replace('-', ' ').title()
+        print(f"{i}) {display_name}")
     print("q) Quit")
     print("-" * 60)
 
 def main():
-    labs = get_available_labs()
-    workloads = get_available_workloads()
-    selected_workload = "robust_steady" if "robust_steady" in workloads else (workloads[0] if workloads else "robust_steady")
-    
     while True:
-        show_menu(labs, workloads, selected_workload)
-        choice = input("👉 Enter choice: ").strip().lower()
+        labs = get_labs_with_benchmarks()
+        if not labs:
+            print("❌ No labs with benchmarks found in /labs directory.")
+            print("   Make sure labs have a 'benchmark/run.py' file.")
+            break
+            
+        show_menu(labs)
+        choice = input("👉 Select Lab Index: ").strip().lower()
         
         if choice == 'q':
-            print("👋 Exiting.")
+            print("👋 Exiting Orchestrator.")
+            break
+        
+        if choice == '0':
+            print(f"\n☢️  CRITICAL: STARTING GLOBAL REGRESSION ({len(labs)} Labs)...")
+            for lab in labs:
+                run_lab_benchmark(lab)
+            print("\n✅ GLOBAL REGRESSION COMPLETE.")
             break
         
         try:
-            if choice == 'w':
-                if not workloads:
-                    print("❌ No workloads found in benchmark/workloads.")
-                    continue
-                print("\nAvailable workloads:")
-                for i, w in enumerate(workloads, 1):
-                    print(f"{i}) {w}")
-                w_choice = input("👉 Select workload number: ").strip()
-                w_idx = int(w_choice) - 1
-                if 0 <= w_idx < len(workloads):
-                    selected_workload = workloads[w_idx]
-                    print(f"✅ Workload set to {selected_workload}.")
-                else:
-                    print("❌ Invalid workload selection.")
-                continue
-
-            if choice == '0':
-                print(f"\n☢️  STARTING GLOBAL BENCHMARK SUITE ({len(labs)} Labs) [{selected_workload}]...")
-                for lab in labs:
-                    run_benchmark(lab, selected_workload)
-                print("\n✅ GLOBAL SUITE COMPLETE.")
-                break
-            
             idx = int(choice) - 1
             if 0 <= idx < len(labs):
-                selected_lab = labs[idx]
-                run_benchmark(selected_lab, selected_workload)
-                print(f"\n✅ Finished benchmark for {selected_lab} [{selected_workload}].")
+                run_lab_benchmark(labs[idx])
             else:
                 print("❌ Invalid selection.")
         except ValueError:

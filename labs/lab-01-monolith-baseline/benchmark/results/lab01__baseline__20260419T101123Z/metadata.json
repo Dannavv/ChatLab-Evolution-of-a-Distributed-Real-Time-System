@@ -1,0 +1,102 @@
+{
+  "run_id": "lab01__baseline__20260419T101123Z",
+  "lab": "lab-01-monolith-baseline",
+  "scenario": "baseline",
+  "description": "Steady load to capture the monolith operating curve.",
+  "started_at_utc": "2026-04-19T10:11:23.136427Z",
+  "workload": {
+    "name": "lab01-monolith-benchmark",
+    "lab": "lab-01-monolith-baseline",
+    "port": 8080,
+    "ws_url": "ws://localhost:8080/ws",
+    "metrics_url": "http://localhost:8080/metrics",
+    "health_url": "http://localhost:8080/health",
+    "warmup_seconds": 8,
+    "scrape_interval_seconds": 1,
+    "results_dir": "benchmark/results",
+    "scenarios": {
+      "baseline": {
+        "description": "Steady load to capture the monolith operating curve.",
+        "message_interval_ms": 5000,
+        "stages": [
+          {
+            "duration": "30s",
+            "target_vus": 50
+          },
+          {
+            "duration": "60s",
+            "target_vus": 150
+          },
+          {
+            "duration": "60s",
+            "target_vus": 300
+          },
+          {
+            "duration": "30s",
+            "target_vus": 0
+          }
+        ]
+      },
+      "saturation": {
+        "description": "Sustained pressure to expose mutex and broadcast bottlenecks.",
+        "message_interval_ms": 3000,
+        "stages": [
+          {
+            "duration": "20s",
+            "target_vus": 100
+          },
+          {
+            "duration": "40s",
+            "target_vus": 400
+          },
+          {
+            "duration": "60s",
+            "target_vus": 800
+          },
+          {
+            "duration": "40s",
+            "target_vus": 1200
+          },
+          {
+            "duration": "20s",
+            "target_vus": 0
+          }
+        ]
+      },
+      "spike_recovery": {
+        "description": "Abrupt spike and recovery to observe tail latency and memory rebound.",
+        "message_interval_ms": 2500,
+        "stages": [
+          {
+            "duration": "20s",
+            "target_vus": 100
+          },
+          {
+            "duration": "20s",
+            "target_vus": 900
+          },
+          {
+            "duration": "15s",
+            "target_vus": 1500
+          },
+          {
+            "duration": "20s",
+            "target_vus": 300
+          },
+          {
+            "duration": "15s",
+            "target_vus": 1200
+          },
+          {
+            "duration": "30s",
+            "target_vus": 0
+          }
+        ]
+      }
+    }
+  },
+  "environment": {
+    "python": "3.13.12 (main, Feb  4 2026, 15:06:39) [GCC 15.2.0]",
+    "platform": "linux"
+  }
+}

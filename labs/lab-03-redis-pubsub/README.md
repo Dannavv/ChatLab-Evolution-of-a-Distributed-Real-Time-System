@@ -1,85 +1,59 @@
-[🏠 Home](../../README.md) | [⬅️ Previous (Lab 02)](../lab-02-persistence-layer/README.md)
+[🏠 Home](../../README.md) | [⬅️ Previous (Lab 02)](../lab-02-persistence-layer/README.md) | [Next Lab (Lab 04) ➡️](../lab-04-scalable-monolith/README.md)
 
-# Lab 03: The Distributed Mesh
-## *Scaling with Redis Pub/Sub and Horizontal Concurrency*
+# Lab 03: Redis Pub/Sub
+## *The Distributed Mesh and Linear Scaling*
 
-This lab represents the "High Availability" phase of the architecture. By decoupling message distribution from the application logic using Redis Pub/Sub, we have successfully broken the **Serial Broadcast Bottleneck**.
+### 🔬 The Hypothesis
+> "By decoupling the message distribution from the application server using Redis Pub/Sub, we can achieve linear horizontal scaling. Multiple server nodes can now share a unified message bus, allowing us to distribute client connections without losing global chat connectivity."
 
----
-
-## 🏗️ Architecture
-
-```
-                               ┌──────────────────┐
-                               │  Redis Pub/Sub   │
-                               │  (Message Bus)   │
-                               └────────┬─────────┘
-                                        │
-                    ┌───────────────────┴───────────────────┐
-                    │                                       │
-         ┌──────────┴──────────┐                 ┌──────────┴──────────┐
-         │   Chat Server 01    │                 │   Chat Server 02    │
-         │   (Node ID: 01)     │                 │   (Node ID: 02)     │
-         └──────────┬──────────┘                 └──────────┬──────────┘
-                    │                                       │
-          ┌─────────┴─────────┐                   ┌─────────┴─────────┐
-          │  Clients (1250)   │                   │  Clients (1250)   │
-          └───────────────────┘                   └───────────────────┘
-```
+### 🔴 The Problem: The Single-Node Wall
+In Lab 01 and 02, our "Broadcast Loop" was synchronous and local. 
+- **The Limit**: If you added a second server, users on Server A couldn't talk to users on Server B.
+- **The Solution**: A centralized **Message Broker (Redis)** that acts as a global backbone.
 
 ---
 
-## 📊 Performance Analysis
-![Lab 03 Performance](../../assets/benchmarks/lab-03-redis-pubsub-performance.png)
-
-### The Architectural "Holy Grail"
-The Robust Mode results for Lab 03 demonstrate **Linear Scaling**:
-
-1. **Flat Latency Ceiling**: Unlike the Monolith (which hit a wall at 1,000 users), the Redis Mesh maintains a stable **~14ms latency** even at **2,500 Virtual Users**. 
-2. **Parallel Processing**: By splitting the users across multiple nodes, we have reduced the O(N) broadcast loop complexity. Each server only manages a fraction of the total connections.
-3. **Throughput Dominance**: The system successfully processed over **80,000 messages** during the stress test. The throughput continues to climb linearly with the user count, indicating that we haven't even hit the limits of the Redis bus yet.
+### 🏗️ Architecture
+![Lab 03 Architecture](assets/benchmarks/architecture.png)
+*Figure 1: The Distributed Architecture. Multiple chat nodes connected via Redis Pub/Sub.*
 
 ---
 
-## 🔬 Technical Deep Dive
+### 📊 Performance Analysis
+![Modern Dashboard](assets/benchmarks/modern_quad_dashboard.png)
+*Figure 2: Unified view of the Distributed Mesh performance.*
 
-### 1. Decoupled Message Routing
-Instead of looping through all global users, each node only broadcasts to its **local** connections. Redis handles the global distribution:
-
-```go
-func handleMessage(msg Message) {
-    // 1. Save to DB (Persistence)
-    saveToDB(msg)
-    
-    // 2. Publish to Redis (The Mesh)
-    redis.Publish(ctx, "chat_messages", msg)
-}
-
-// 3. Background Subscriber handles local delivery
-func subscribeOnce() {
-    for redisMsg := range ch {
-        broadcastLocally(redisMsg) // Only hits clients on THIS node
-    }
-}
-```
-
-### 2. Efficiency Gains
-The **Efficiency (%)** graph remains significantly higher than the single-node labs. This is because the "Wait-States" for DB I/O and the "CPU Churn" for large loops are now distributed across multiple cores and multiple containers.
+#### 🧐 Reading the Signal:
+1.  **The Efficiency Breakthrough**: Unlike the Monolith (Lab 01), which hit a wall at 100 users, Lab 03 demonstrates **Stable Latency** even as we scale across multiple nodes.
+2.  **Horizontal Proof**:
+   ![Latency Scaling](assets/benchmarks/modern_latency_scaling.png)
+   *Figure 3: Scaling Profile. Note how the latency curve is significantly flatter compared to Lab 02, as the work is shared across the Redis mesh.*
 
 ---
 
-## 🚀 Run the Mesh
+### 📉 Reliability Audit
+![Reliability Loss](assets/benchmarks/modern_reliability_loss.png)
+*Figure 4: Throughput Deficit.*
 
+#### 🧐 Reading the Signal:
+- **Zero-Deficit Zone**: Because the broadcast work is now partially handled by Redis, the individual chat servers have more CPU headroom to handle WebSocket frames, significantly reducing the "Silent Failure" rate seen in previous labs.
+
+---
+
+### 🔬 Key Lessons
+- **Shared State is Mandatory**: You cannot build a distributed chat without a shared bus.
+- **Redis Overhead**: While Redis adds a small network hop tax, the **Scalability Gain** far outweighs the few milliseconds of latency it introduces.
+
+---
+
+### 🚀 Commands
 ```bash
-cd labs/lab-03-redis-pubsub
+# Start the lab (2 Replicas)
 docker-compose up --build -d
-```
 
-## 🧪 Cluster Benchmark
-Run the "Robust Mode" flight recorder from the project root:
-```bash
-python3 main.py
+# Run local benchmark
+python3 labs/lab-03-redis-pubsub/benchmark/run.py
 ```
 
 ---
-[Congratulations! You have completed the Performance Manuscript.](../../README.md)
+[Next Lab: Lab 04 (Scalable Monolith) ➡️](../lab-04-scalable-monolith/README.md)

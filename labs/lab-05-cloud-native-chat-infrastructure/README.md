@@ -1,105 +1,58 @@
-[🏠 Home](../../README.md) | [⬅️ Previous (Lab 04)](../lab-04-scalable-monolith/README.md)
+[🏠 Home](../../README.md) | [⬅️ Previous (Lab 04)](../lab-04-scalable-monolith/README.md) | [Next Lab (Lab 06) ➡️](../lab-06-chaos-and-resilience/README.md)
 
-# Lab 05: Cloud Native Infrastructure
-## *Microservices, Decoupled Queues, and Independent Scaling*
+# Lab 05: Cloud-Native Chat Infrastructure
+## *Decoupled Pipelines and Object Storage*
 
-This lab marks the transition from a monolithic architecture to a **Cloud Native** one. By decomposing the system into specialized services (API Ingest and Async Worker), we achieve a level of resilience and scalability that was previously impossible.
+### 🔬 The Hypothesis
+> "By decoupling the ingest path (API) from the processing path (Worker) using a Redis Queue, we can achieve high 'Burst Tolerance.' The system will accept messages at wire-speed and process them asynchronously, allowing us to leverage scalable Object Storage (MinIO) for long-term archiving without affecting real-time latency."
 
----
-
-## 🏗️ Architecture
-
-```
-                      ┌──────────────────────┐
-                      │  WebSocket Clients   │
-                      └──────────┬───────────┘
-                                 │
-                    ┌────────────┴───────────┐
-                    │     Chat API (Go)      │
-                    │  (Ingest Only - O(1))  │
-                    └────────────┬───────────┘
-                                 │ (LPUSH)
-                        ┌────────┴────────┐
-                        │  Redis Queue    │
-                        └────────┬────────┘
-                                 │ (BRPOP)
-                    ┌────────────┴───────────┐
-                    │   Chat Worker (Go)     │
-                    │  (DB Write & Fan-out)  │
-                    └──────────┬───┬─────────┘
-                    ┌──────────┘   └──────────┐
-                    ▼                         ▼
-            ┌──────────────┐          ┌──────────────┐
-            │  PostgreSQL  │          │  MinIO S3    │
-            │  (Storage)   │          │  (Archive)   │
-            └──────────────┘          └──────────────┘
-```
+### 🔴 The Problem: The Heavyweight Worker
+In Lab 04, if a worker was slow, the whole server lagged. 
+- **The Limit**: If you want to archive messages to S3/MinIO, the write time can be unpredictable. 
+- **The Solution**: **Micro-Batching & Async Processing**. The API node only writes to a fast Redis Queue. A separate Worker node pulls from Redis and handles the heavy lifting (Postgres writes + MinIO archiving).
 
 ---
 
-## 📊 Performance Analysis
-![Lab 05 Performance](../../assets/benchmarks/lab-05-cloud-native-chat-infrastructure-performance.png)
-
-### The "Decoupling" Advantage
-The **Robust Mode** results for Lab 05 show the highest stability yet:
-
-1. **Near-Zero Ingest Latency**: Because the API service only pushes messages to Redis, the client-facing latency remains extremely low (~2-30ms) regardless of how slow the database or archive storage becomes.
-2. **Infinite Buffering**: Redis acts as a massive shock absorber. During the 2,500 VU peak, even if the Worker falls behind, the API remains healthy and responsive.
-3. **Robust Efficiency**: The **Efficiency (%)** curve is the flattest in the entire suite. Specialized services handle their specific tasks without context-switching between I/O and connection management.
+### 🏗️ Architecture
+![Lab 05 Architecture](assets/benchmarks/architecture.png)
+*Figure 1: The Cloud-Native Pipeline. API Gateway -> Redis Stream -> Background Worker -> Object Storage.*
 
 ---
 
-## 🔬 Technical Deep Dive
+### 📊 Performance Analysis
+![Modern Dashboard](assets/benchmarks/modern_quad_dashboard.png)
+*Figure 2: Performance mesh showing the decoupled API response times.*
 
-### 1. The Ingest Pattern (API)
-The API is optimized for speed. It has one job: get the message into the queue as fast as possible.
-
-```go
-func handleMessage(msg Message) {
-    // 1. Marshall & Push to Redis (Fast!)
-    redis.LPush(ctx, "chat:ingest", msg)
-    
-    // 2. Return success immediately
-    w.WriteHeader(http.StatusAccepted)
-}
-```
-
-### 2. The Processing Pattern (Worker)
-The worker consumes from the queue and handles the "Heavy" side effects like DB persistence and S3 archiving without affecting the client's connection.
+#### 🧐 Reading the Signal:
+1.  **Ingest Speed**: Notice that "Latency" (API response) remains incredibly low even as the workload spikes. This is because the API is only doing a single Redis `LPUSH`.
+2.  **The Decoupling Proof**:
+   ![Latency Scaling](assets/benchmarks/modern_latency_scaling.png)
+   *Figure 3: API Latency vs Load. The flat line proves that the "Heavy" processing (DB/MinIO) has been successfully removed from the critical path.*
 
 ---
 
-## 📐 Consistency and Ownership Contract
+### 📉 Reliability Audit
+![Reliability Loss](assets/benchmarks/modern_reliability_loss.png)
+*Figure 4: Throughput Deficit.*
 
-### Consistency model
-- **Queue-to-store path**: eventual consistency.
-- **Ingest acknowledgement**: accepted on enqueue, not on durable write completion.
-
-### Delivery semantics
-- **Queue processing**: at-least-once.
-- **Durable side effects**: effectively-once only when idempotency keys and unique constraints are enforced.
-
-### Duplicate and ordering behavior
-- Duplicates may appear during retries or worker restart.
-- Ordering can diverge between enqueue order and final persisted order under pressure.
-
-### Data ownership and cost
-- Regional API nodes should own local ingest and queue buffering.
-- Durable chat history should be retained in PostgreSQL hot storage with selective archival to object storage.
-- Archive and replication traffic should be budgeted explicitly since storage and egress dominate cost at scale.
+#### 🧐 Reading the Signal:
+- **Queue Buffering**: Unlike previous labs where "Deficit" meant "Dropped Data," in Lab 05, a deficit often just means the **Worker is behind**. The messages are safe in the Redis Queue and will be processed once the load subsides. This is **Durability by Design**.
 
 ---
 
-## 🚀 Run the Infrastructure
+### 🔬 Key Lessons
+- **Critical Path Management**: Never do I/O (Disk/S3) in a WebSocket handler.
+- **Object Storage vs. Relational**: PostgreSQL handles the "Real-Time History," while MinIO handles the "Permanent Archive."
 
+---
+
+### 🚀 Commands
 ```bash
-cd labs/lab-05-cloud-native-chat-infrastructure
+# Start the full stack (API, Worker, Redis, DB, MinIO)
 docker-compose up --build -d
-```
 
-## 🧪 Robust Benchmark
-```bash
-python3 main.py
+# Run local benchmark
+python3 labs/lab-05-cloud-native-chat-infrastructure/benchmark/run.py
 ```
 
 ---

@@ -15,6 +15,7 @@ import yaml
 from plot import generate_run_graphs, generate_suite_graphs
 
 LAB_DIR = Path(__file__).resolve().parent.parent
+LAB_NAME = LAB_DIR.name
 ROOT_DIR = LAB_DIR.parent.parent
 RESULTS_ROOT = LAB_DIR / 'benchmark' / 'results'
 WORKLOAD_FILE = LAB_DIR / 'benchmark' / 'workload.yaml'
@@ -41,7 +42,7 @@ def cleanup(sig=None, frame=None):
     if k6_process and k6_process.poll() is None:
         k6_process.terminate()
     run_command('docker-compose down', cwd=LAB_DIR)
-    print('\nStopped lab 02 benchmark.')
+    print(f'\nStopped {LAB_NAME} benchmark.')
     sys.exit(0)
 
 signal.signal(signal.SIGINT, cleanup)
@@ -68,7 +69,6 @@ def run_sampler(metrics_url, output_path, stop_event, scrape_interval_seconds):
     last_db_count = 0.0
 
     with output_path.open('w', encoding='utf-8') as f:
-        # sql_latency_ms corresponds to chat_db_query_duration_ms in Prometheus
         f.write('timestamp_s,vus,latency_ms,db_latency_ms,memory_mb,messages_total,dropped_total\n')
         while not stop_event.is_set():
             try:
@@ -108,20 +108,22 @@ def run_sampler(metrics_url, output_path, stop_event, scrape_interval_seconds):
 
 def run_scenario(scenario_name, scenario, workload):
     global k6_process
-    run_id = f"lab02__{scenario_name}__{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+    # Correct ID detection: lab-03-redis -> lab03
+    lab_id_num = LAB_NAME.split('-')[1]
+    run_id = f"lab{lab_id_num}__{scenario_name}__{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     run_dir = RESULTS_ROOT / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
     metadata = {
         'run_id': run_id,
-        'lab': 'lab-02-persistence-layer',
+        'lab': LAB_NAME,
         'scenario': scenario_name,
         'started_at_utc': dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00', 'Z'),
         'workload': workload
     }
     (run_dir / 'metadata.json').write_text(json.dumps(metadata, indent=2))
 
-    print(f'\n🚀 Running Lab 02: {scenario_name}')
+    print(f'\n🚀 Starting {LAB_NAME.upper()}: {scenario_name}')
     run_command('docker-compose down', cwd=LAB_DIR)
     run_command('docker-compose up --build -d', cwd=LAB_DIR, check=True)
     wait_for_health(workload['health_url'])
@@ -171,4 +173,4 @@ if __name__ == '__main__':
             run_scenario(scenario_name, scenario, workload)
     
     generate_suite_graphs(RESULTS_ROOT)
-    print('\n✅ Lab 02 benchmark complete.')
+    print(f'\n✅ {LAB_NAME.upper()} benchmark complete.')

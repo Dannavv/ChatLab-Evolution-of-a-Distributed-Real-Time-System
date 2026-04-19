@@ -1,105 +1,58 @@
-[🏠 Home](../../README.md) | [⬅️ Previous (Lab 05)](../lab-05-cloud-native-chat-infrastructure/README.md)
+[🏠 Home](../../README.md) | [⬅️ Previous (Lab 05)](../lab-05-cloud-native-chat-infrastructure/README.md) | [Next Lab (Lab 07) ➡️](../lab-07-real-time-presence-and-delivery/README.md)
 
 # Lab 06: Chaos and Resilience
-## *Circuit Breakers, Idempotency, and Guaranteed Delivery*
+## *Circuit Breakers, Retries, and the Dead Letter Queue*
 
-Lab 06 focuses on **Engineering for Failure**. In a distributed system, failures are inevitable. The objective of this lab is to implement patterns that contain failure, prevent retry storms, and ensure **Exactly-Once** processing even when the infrastructure is under attack.
+### 🔬 The Hypothesis
+> "By implementing Circuit Breakers and Retry Policies with exponential backoff, we can prevent 'Cascading Failures.' The system will detect downstream service degradation and proactively shed load, ensuring the 'Core API' remains responsive even when the 'Persistence Worker' is failing."
 
----
-
-## 🏗️ Architecture
-
-```
-                                  ┌───────────────────┐
-                                  │   Circuit Breaker │
-                                  └─────────┬─────────┘
-                                            │
-        ┌──────────────┐          ┌─────────┴─────────┐          ┌──────────────┐
-        │  Chat API    ├─────────►│   Redis Queue     ├─────────►│ Chat Worker  │
-        │  (Ingest)    │          │ (Reliable Handoff)│          │ (Idempotent) │
-        └──────────────┘          └───────────────────┘          └──────┬───────┘
-                                                                        │
-                                                               ┌────────┴────────┐
-                                                               │   PostgreSQL    │
-                                                               │ (Unique Const.) │
-                                                               └─────────────────┘
-```
+### 🔴 The Problem: The Cascading Failure
+In Lab 05, if the Worker was slow, the Redis Queue filled up. 
+- **The Limit**: Eventually, the Queue hits the memory limit, and the API crashes. One bad component kills the whole system.
+- **The Solution**: **Active Resilience**. The API monitors the health of the Worker. If the Worker fails too many times, the **Circuit Breaker trips (opens)**. The API stops sending to the failing service and instead routes to a **Dead Letter Queue (DLQ)**.
 
 ---
 
-## 📊 Performance Analysis
-![Lab 06 Performance](../../assets/benchmarks/lab-06-chaos-and-resilience-performance.png)
-
-### Chaos Resilience Results
-In **Robust Mode**, we evaluate how the system handles intentional resource exhaustion:
-1. **Failing Fast**: When the API detects high failure rates, the Circuit Breaker trips. This prevents the "Death Spiral" where the server exhausts its own memory trying to retry thousands of doomed messages.
-2. **Queue Stability**: Even with a 500ms artificial delay on the Worker, the ingest path remains responsive. The system prioritizes "Acceptance" into the queue, ensuring the user experience doesn't lag.
+### 🏗️ Architecture
+![Lab 06 Architecture](assets/benchmarks/architecture.png)
+*Figure 1: The Resilient Mesh. API -> [Circuit Breaker] -> Worker -> [Dead Letter Queue].*
 
 ---
 
-## 📊 Resilience Mechanics
+### 📊 Performance Analysis
+![Modern Dashboard](assets/benchmarks/modern_quad_dashboard.png)
+*Figure 2: Performance mesh under "Chaos" conditions (simulated worker failures).*
 
-### 1. The Circuit Breaker (Ingress Protection)
-The API monitors the health of the Redis ingestion. If it detects **3 consecutive operation failures**, it "trips" the breaker for **10 seconds**. 
--   **Visual Verification**: In the UI, set **API Drop Rate to 1.0** and click **Send 3 times**. You will see the status turn **RED (Open)**.
--   **Why it's necessary**: Instead of wasting CPU cycles and memory on messages that cannot be saved, the API "fails fast," giving the backend time to recover.
-
-### 2. Reliable Queue Handoff (Worker Safety)
-We use the `BRPOPLPUSH` pattern. A message is moved to a `chat:processing` list atomically.
--   **Guaranteed Retry**: We only "Ack" (remove) the message from Redis **after** it is safely back in the ingest queue during a retry. This ensures no message is lost if a worker crashes mid-process.
-
-### 3. Database Idempotency
-The worker uses an `ON CONFLICT (message_id) DO NOTHING` pattern combined with `RowsAffected` checks.
--   **Exactly-Once Processing**: Even during "Retry Storms," the system ensures that a message is only archived and broadcast to the UI exactly once.
-
-### 4. Consistency and Delivery Scope
-- **Ingest consistency**: eventual consistency from queue accept to final broadcast.
-- **Queue semantics**: at-least-once delivery across retries.
-- **Idempotent processing**: effectively-once side effects for durable writes.
-- **Reordering**: possible after retries; clients should not assume strict enqueue order under failure.
+#### 🧐 Reading the Signal:
+1.  **Latency Stabilization**: Notice the sharp "Spikes" in the Latency graph. These are the moments the Circuit Breaker is "Testing" the connection.
+2.  **The Trip Proof**:
+   ![Latency Scaling](assets/benchmarks/modern_latency_scaling.png)
+   *Figure 3: Latency Profile. Note the "Plateau"—when the breaker is OPEN, latency is extremely low (fast-fail). When it is CLOSED, latency is higher as it attempts to process.*
 
 ---
 
-## 🧪 Chaos Stress Test Sequence
-To witness the resilience mechanics in action, follow this sequence in the UI:
+### 📉 Reliability Audit
+![Reliability Loss](assets/benchmarks/modern_reliability_loss.png)
+*Figure 4: Throughput Deficit showing "Self-Healing."*
 
-1. **Test the Breaker**: 
-   - Set `API Drop Rate` to `1.0`.
-   - Click **Apply All Chaos**.
-   - Click **Send** 3 times. 
-   - *Result*: Breaker status turns **Open**.
-   
-2. **Test the Queue Depth**:
-   - Set `Worker Delay` to `500ms`.
-   - Click **Apply All Chaos**.
-   - Click **Burst x20**.
-   - *Result*: Queue Depth climbs to 20 and ticks down slowly.
-
-3. **Verify Recovery**:
-   - Click **Reset All**.
-   - Send a message.
-   - *Result*: System returns to **Closed (Green)** status and low latency.
+#### 🧐 Reading the Signal:
+- **DLQ Absorption**: The red area in Figure 4 is no longer "Lost Data." It represents messages that were successfully diverted to the **Dead Letter Queue**. Once the "Chaos" subsided and the worker recovered, these messages were automatically re-processed.
 
 ---
 
-## 🔗 Endpoints
-- **Chat UI (Chaos Dashboard)**: [http://localhost:8086](http://localhost:8086)
-- **Worker Status**: [http://localhost:8087/status](http://localhost:8087/status)
-- **Prometheus (Resilience)**: [http://localhost:9094](http://localhost:9094)
-- **MinIO Console (Archive)**: [http://localhost:9011](http://localhost:9011)
+### 🔬 Key Lessons
+- **Fast-Fail is Better than Slow-Hang**: Users prefer an "Error" to a "Loading Spinner" that never ends.
+- **Observability is Resilience**: Without metrics showing the Breaker status, you are flying blind in a distributed storm.
 
 ---
 
-## 🚀 Run the Lab
-
+### 🚀 Commands
 ```bash
-cd labs/lab-06-chaos-and-resilience
+# Start the lab with simulated chaos
 docker-compose up --build -d
-```
 
-## 🧪 Robust Benchmark
-```bash
-python3 main.py
+# Run local benchmark
+python3 labs/lab-06-chaos-and-resilience/benchmark/run.py
 ```
 
 ---

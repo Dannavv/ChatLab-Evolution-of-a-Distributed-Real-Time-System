@@ -1,0 +1,28 @@
+{
+  "run_id": "lab02__cloud_native_ingest__20260419T121209Z",
+  "lab": "lab-02-persistence-layer",
+  "scenario": "cloud_native_ingest",
+  "started_at_utc": "2026-04-19T12:12:09.799312Z",
+  "workload": {
+    "health_url": "http://localhost:8085/health",
+    "metrics_url": "http://localhost:8085/metrics",
+    "ws_url": "ws://localhost:8085/ws",
+    "scrape_interval_seconds": 1,
+    "scenarios": {
+      "cloud_native_ingest": {
+        "description": "Benchmark Cloud-Native Ingest Pipeline (API -> Redis -> Worker)",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 200
+          },
+          {
+            "duration": "1m",
+            "target_vus": 600
+          }
+        ]
+      }
+    }
+  }
+}
