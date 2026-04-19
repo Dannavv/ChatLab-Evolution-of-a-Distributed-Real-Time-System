@@ -65,10 +65,10 @@ python3 benchmark/orchestrator.py --labs lab-01-monolith-baseline
 python3 benchmark/orchestrator.py --scaling --labs lab-01-monolith-baseline
 ```
 
-### ☢️ God Mode (Smooth Ramp-up to 2500 VUs + Live Telemetry)
+### ☢️ Robust Mode (Smooth Ramp-up to 2500 VUs + Live Telemetry)
 *Recommended for generating the "Manuscript" performance graphs.*
 ```bash
-python3 benchmark/orchestrator.py --god-mode --labs lab-02-persistence-layer
+python3 benchmark/orchestrator.py --Robust-mode --labs lab-02-persistence-layer
 ```
 
 ### Lab 04 Benchmark Target
@@ -102,7 +102,7 @@ python3 benchmark/orchestrator.py --labs lab-09-message-security
 Use these commands to process the raw telemetry data into professional reports.
 
 ### Generate Master Performance Report (Landscape)
-*Processes the latest God Mode CSV into a 3-panel landscape PNG.*
+*Processes the latest Robust Mode CSV into a 3-panel landscape PNG.*
 ```bash
 python3 benchmark/visualize.py
 ```

@@ -33,7 +33,7 @@ This lab represents the "High Availability" phase of the architecture. By decoup
 ![Lab 03 Performance](../../assets/benchmarks/lab-03-redis-pubsub-performance.png)
 
 ### The Architectural "Holy Grail"
-The God Mode results for Lab 03 demonstrate **Linear Scaling**:
+The Robust Mode results for Lab 03 demonstrate **Linear Scaling**:
 
 1. **Flat Latency Ceiling**: Unlike the Monolith (which hit a wall at 1,000 users), the Redis Mesh maintains a stable **~14ms latency** even at **2,500 Virtual Users**. 
 2. **Parallel Processing**: By splitting the users across multiple nodes, we have reduced the O(N) broadcast loop complexity. Each server only manages a fraction of the total connections.

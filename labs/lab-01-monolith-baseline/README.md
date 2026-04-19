@@ -43,7 +43,7 @@ We track the system's "pulse" via Prometheus:
 ## 📊 Performance Analysis
 ![Lab 01 Performance](../../assets/benchmarks/lab-01-performance.png)
 
-### The "God Mode" Stress Test Results
+### The "Robust Mode" Stress Test Results
 The data above reveals the scientific "breaking point" of the monolith architecture under a 0.5 CPU constraint:
 
 1. **Efficiency Degradation**: Notice how the **Efficiency (%)** curve falls off as scale increases. This is the "O(N) Tax"—the server spends more time iterating through connections than actually processing new messages.
