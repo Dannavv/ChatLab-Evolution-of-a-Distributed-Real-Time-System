@@ -26,15 +26,15 @@ Lab 10 represents the pinnacle of the architecture: a fully decoupled **Microser
 
 ---
 
-## 📊 Performance Analysis
+## 📊 Performance Analysis (The "Microservice Cliff")
 ![Lab 10 Performance](../../assets/benchmarks/lab-10-microservices-migration-performance.png)
 
-### The "Microservice Tax" vs. Scaling Advantage
-In **Robust Mode**, we analyze the trade-offs of extreme decoupling:
+### The Real-World "Microservice Tax"
+The **Robust Stress Test** for Lab 10 reveals the most critical lesson in the entire curriculum: **Decoupling is not free.**
 
-1. **Network Hop Jitter**: You will notice a slight baseline latency increase compared to the monolith. This is because every message now traverses the Gateway ➡️ Message Service ➡️ Redis ➡️ Gateway hop.
-2. **Specialized Scaling**: Notice that the **History Service** memory remains flat even when the **Message Service** is under heavy load. This allows us to scale the "Chat Ingest" independently of the "History Retrieval" traffic.
-3. **Gateway Saturation**: The Gateway is now the primary bottleneck. By monitoring its metrics on port 8100, we can see exactly when the WebSocket connection limit is reached, independent of the backend logic.
+1. **Cascading Latency (23s+)**: At the 2,500 VU peak, latency spiked to an astronomical **23 seconds**. This occurred because the Gateway and Message Service exhausted their 0.5 CPU limits just managing the HTTP/TCP overhead of communicating with each other. This is the "Microservice Tax" in its most extreme form.
+2. **Resource Exhaustion**: Notice the memory usage climbed to **~230MB** across the mesh. While each individual service is lean, the aggregate overhead of multiple Go runtimes and HTTP buffers significantly exceeds the footprint of the Lab 05 Cloud-Native monolith.
+3. **The Throughput Wall**: Unlike previous labs that could handle the 2,500 VU peak with ~100ms latency, the Lab 10 mesh effectively "stalled" at 1,000 VUs. This demonstrates that for small-scale deployments, a monolith is often *faster* than a microservice mesh.
 
 ---
 

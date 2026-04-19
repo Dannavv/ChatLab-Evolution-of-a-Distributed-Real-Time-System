@@ -301,7 +301,8 @@ func broadcast(msg protocol.Message) {
 	clientsMutex.Unlock()
 
 	metrics.MessagesTotal.Inc()
-	metrics.MessageLatency.Observe(0)
+	latency := float64(time.Now().UnixMilli() - msg.Timestamp)
+	metrics.MessageLatency.Observe(latency)
 }
 
 func allowRequest(userID string) bool {
