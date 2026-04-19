@@ -1,0 +1,445 @@
+{
+  "generated_rows": [
+    {
+      "lab": "lab-01-monolith-baseline",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-01-monolith-baseline/benchmark/results/lab01__comparison_standard__20260419T141431Z",
+      "latency_ms": {
+        "p50": 2.054,
+        "p90": 2.737,
+        "p95": 2.797,
+        "p99": 2.869
+      },
+      "throughput_msgs_s": {
+        "avg": 65.074,
+        "peak": 102.0
+      },
+      "reliability": {
+        "error_rate_pct": 0.0,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Immediate single-node visibility",
+        "notes": "One in-memory authority; no distributed replication or persistence semantics."
+      },
+      "routing_strategy": {
+        "policy": "Direct client-to-single-node routing.",
+        "objective": "Establish the latency floor before any distributed indirection."
+      },
+      "failure_model": {
+        "focus": "Local process overload and mutex contention.",
+        "mechanisms": [
+          "Best-effort websocket delivery",
+          "Drop accounting through Prometheus counters"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "CPU and memory on one node.",
+        "notes": "No network egress or external service cost yet."
+      },
+      "synthesis": {
+        "scaling_inflection": "Shared in-memory state is fast but non-durable and non-scalable.",
+        "learning_goal": "Establish the baseline latency floor and the first comparable workload."
+      }
+    },
+    {
+      "lab": "lab-02-persistence-layer",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-02-persistence-layer/benchmark/results/lab02__comparison_standard__20260419T142802Z",
+      "latency_ms": {
+        "p50": 2.762,
+        "p90": 3.468,
+        "p95": 3.497,
+        "p99": 3.52
+      },
+      "throughput_msgs_s": {
+        "avg": 65.044,
+        "peak": 101.0
+      },
+      "reliability": {
+        "error_rate_pct": 0.0,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Strong single-writer durability",
+        "notes": "The primary server acknowledges after durable write on one database."
+      },
+      "routing_strategy": {
+        "policy": "Direct client-to-single-node routing with synchronous write-through to storage.",
+        "objective": "Measure durability cost before introducing horizontal distribution."
+      },
+      "failure_model": {
+        "focus": "Write amplification, database stalls, and durable-path errors.",
+        "mechanisms": [
+          "DB error counters",
+          "History replay for persisted state"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "Database IOPS and write latency.",
+        "notes": "Persistence introduces storage and connection overhead."
+      },
+      "synthesis": {
+        "scaling_inflection": "Durability improves correctness but adds a measurable synchronous write tax.",
+        "learning_goal": "Make consistency and storage cost explicit before scaling out."
+      }
+    },
+    {
+      "lab": "lab-03-redis-pubsub",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-03-redis-pubsub/benchmark/results/lab03__comparison_standard__20260419T143522Z",
+      "latency_ms": {
+        "p50": 1.297,
+        "p90": 1.525,
+        "p95": 1.546,
+        "p99": 1.582
+      },
+      "throughput_msgs_s": {
+        "avg": 67.22,
+        "peak": 192.0
+      },
+      "reliability": {
+        "error_rate_pct": 1.831,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Eventual multi-node convergence",
+        "notes": "Redis pub/sub favors fast fan-out over durable cross-node ordering guarantees."
+      },
+      "routing_strategy": {
+        "policy": "Shared pub/sub bus with node-local websocket fan-out.",
+        "objective": "Decouple websocket ingress from cluster-wide fan-out."
+      },
+      "failure_model": {
+        "focus": "Broker disconnects, duplicate fan-out, and subscriber lag.",
+        "mechanisms": [
+          "Duplicate detection by message_id",
+          "Dropped-message counters"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "Broker CPU, memory, and cross-node network traffic.",
+        "notes": "Horizontal fan-out shifts cost from one process to the messaging layer."
+      },
+      "synthesis": {
+        "scaling_inflection": "Fan-out scales better than a mutex-bound monolith, but consistency becomes eventual.",
+        "learning_goal": "Introduce the first distributed coordination trade-off."
+      }
+    },
+    {
+      "lab": "lab-04-scalable-monolith",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-04-scalable-monolith/benchmark/results/lab04__comparison_standard__20260419T144044Z",
+      "latency_ms": {
+        "p50": 1.744,
+        "p90": 2.089,
+        "p95": 2.141,
+        "p99": 2.188
+      },
+      "throughput_msgs_s": {
+        "avg": 49.286,
+        "peak": 65.0
+      },
+      "reliability": {
+        "error_rate_pct": 29.521,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Immediate single-node visibility with queued internal processing",
+        "notes": "Ordering is local to one node, but work now flows through explicit backpressure boundaries."
+      },
+      "routing_strategy": {
+        "policy": "Single ingress node with internal worker-pool dispatch.",
+        "objective": "Preserve single-node semantics while extending concurrency headroom."
+      },
+      "failure_model": {
+        "focus": "Queue saturation and worker backlog.",
+        "mechanisms": [
+          "Drop accounting under pressure",
+          "Memory tracking for queue growth"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "CPU and memory consumed by queue depth and worker concurrency.",
+        "notes": "Cost stays local, but burst handling improves."
+      },
+      "synthesis": {
+        "scaling_inflection": "Queueing delays replace lock contention as the dominant bottleneck.",
+        "learning_goal": "Formalize backpressure before moving into cloud-native decomposition."
+      }
+    },
+    {
+      "lab": "lab-05-cloud-native-chat-infrastructure",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-05-cloud-native-chat-infrastructure/benchmark/results/lab05__comparison_standard__20260419T144544Z",
+      "latency_ms": {
+        "p50": 1.404,
+        "p90": 1.606,
+        "p95": 1.617,
+        "p99": 1.649
+      },
+      "throughput_msgs_s": {
+        "avg": 65.044,
+        "peak": 101.0
+      },
+      "reliability": {
+        "error_rate_pct": 0.0,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Async durable processing with eventual visibility",
+        "notes": "Ingest and processing are decoupled; acknowledgement and final visibility may diverge."
+      },
+      "routing_strategy": {
+        "policy": "API ingress with queue-based worker dispatch.",
+        "objective": "Separate burst absorption from durable processing."
+      },
+      "failure_model": {
+        "focus": "Queue buildup, worker slowness, and ingest/worker desynchronization.",
+        "mechanisms": [
+          "Retry-friendly asynchronous handoff",
+          "Drop accounting and DB error counters"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "Queue infrastructure, worker CPU, and database writes.",
+        "notes": "Cost shifts toward managed messaging and background processing capacity."
+      },
+      "synthesis": {
+        "scaling_inflection": "Burst tolerance improves, but end-to-end semantics are now explicitly asynchronous.",
+        "learning_goal": "Introduce cloud-native decomposition without losing benchmark comparability."
+      }
+    },
+    {
+      "lab": "lab-06-chaos-and-resilience",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-06-chaos-and-resilience/benchmark/results/lab06__comparison_standard__20260419T145137Z",
+      "latency_ms": {
+        "p50": 1.434,
+        "p90": 1.606,
+        "p95": 1.619,
+        "p99": 1.65
+      },
+      "throughput_msgs_s": {
+        "avg": 65.044,
+        "peak": 101.0
+      },
+      "reliability": {
+        "error_rate_pct": 0.0,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Eventual durability with resilience controls",
+        "notes": "Retries preserve delivery intent, but visibility may be delayed by protection mechanisms."
+      },
+      "routing_strategy": {
+        "policy": "API ingress with resilient worker pipeline.",
+        "objective": "Trade some latency for higher survival under downstream failure."
+      },
+      "failure_model": {
+        "focus": "Circuit breaking, retries, dead-letter routing, and degraded dependencies.",
+        "mechanisms": [
+          "Retry loops",
+          "Dead-letter accounting",
+          "Backpressure and drop counters"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "Retry amplification and spare capacity for fault tolerance.",
+        "notes": "Reliability adds operational overhead even when latency stays acceptable."
+      },
+      "synthesis": {
+        "scaling_inflection": "Resilience protects throughput during failure, but it must be measured as an explicit trade-off.",
+        "learning_goal": "Make failure handling part of the benchmark contract instead of an afterthought."
+      }
+    },
+    {
+      "lab": "lab-07-real-time-presence-and-delivery",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-07-real-time-presence-and-delivery/benchmark/results/lab07__comparison_standard__20260419T145728Z",
+      "latency_ms": {
+        "p50": 1.075,
+        "p90": 1.251,
+        "p95": 1.26,
+        "p99": 1.285
+      },
+      "throughput_msgs_s": {
+        "avg": 65.044,
+        "peak": 102.0
+      },
+      "reliability": {
+        "error_rate_pct": 0.946,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Mixed model with eventual presence convergence",
+        "notes": "Presence and typing are intentionally softer-consistency signals than persisted messages."
+      },
+      "routing_strategy": {
+        "policy": "Stateful websocket routing with node-local ephemeral coordination.",
+        "objective": "Prioritize freshness for high-frequency signals without forcing full durability."
+      },
+      "failure_model": {
+        "focus": "Stale presence, fan-out lag, and delivery marker drift.",
+        "mechanisms": [
+          "Duplicate detection",
+          "Dropped-message counters"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "Memory footprint and websocket session density.",
+        "notes": "Ephemeral real-time state consumes memory before it consumes storage."
+      },
+      "synthesis": {
+        "scaling_inflection": "Presence turns state freshness into a first-class scaling problem separate from message durability.",
+        "learning_goal": "Separate soft-state coordination from durable messaging semantics."
+      }
+    },
+    {
+      "lab": "lab-08-global-multi-region",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-08-global-multi-region/benchmark/results/lab08__comparison_standard__20260419T150254Z",
+      "latency_ms": {
+        "p50": 1.5,
+        "p90": 2.0,
+        "p95": 2.0,
+        "p99": 2.5
+      },
+      "throughput_msgs_s": {
+        "avg": 1.835,
+        "peak": 8.0
+      },
+      "reliability": {
+        "error_rate_pct": 0.0,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Eventual cross-region convergence",
+        "notes": "Local latency remains fast, while remote visibility is asynchronous and physically bounded."
+      },
+      "routing_strategy": {
+        "policy": "Latency-based regional affinity with asynchronous bridge replication.",
+        "objective": "Keep local traffic local and push global consistency off the synchronous path."
+      },
+      "failure_model": {
+        "focus": "Bridge lag, replication backlog, and regional isolation during partial failure.",
+        "mechanisms": [
+          "Duplicate suppression by event ID",
+          "Forwarded and dropped bridge counters"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "Cross-region egress and duplicated regional infrastructure.",
+        "notes": "Geography introduces network and operational cost that scale with replication volume."
+      },
+      "synthesis": {
+        "scaling_inflection": "Geography forces a formal consistency trade-off and a formal routing policy.",
+        "learning_goal": "Make regional routing and eventual global convergence explicit."
+      }
+    },
+    {
+      "lab": "lab-09-message-security",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-09-message-security/benchmark/results/lab09__comparison_standard__20260419T150827Z",
+      "latency_ms": {
+        "p50": 1.24,
+        "p90": 1.577,
+        "p95": 1.596,
+        "p99": 1.641
+      },
+      "throughput_msgs_s": {
+        "avg": 64.822,
+        "peak": 101.0
+      },
+      "reliability": {
+        "error_rate_pct": 0.0,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Eventual secure visibility",
+        "notes": "Security preserves message identity while adding CPU-bound processing before visibility."
+      },
+      "routing_strategy": {
+        "policy": "Same regional or local routing as the prior architecture, with crypto validation at ingress.",
+        "objective": "Preserve message-path semantics while exposing security cost."
+      },
+      "failure_model": {
+        "focus": "Key rotation overhead, replay rejection, and decrypt/signature failures.",
+        "mechanisms": [
+          "Replay detection by message_id",
+          "Invalid signature and decrypt failure paths"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "CPU cycles for encryption, decryption, signing, and verification.",
+        "notes": "Security overhead is primarily compute, not transport."
+      },
+      "synthesis": {
+        "scaling_inflection": "Confidentiality and integrity change the system budget even when topology stays similar.",
+        "learning_goal": "Make cryptographic cost and failure semantics measurable."
+      }
+    },
+    {
+      "lab": "lab-10-microservices-migration",
+      "scenario": "comparison_standard",
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-10-microservices-migration/benchmark/results/lab10__comparison_standard__20260419T151341Z",
+      "latency_ms": {
+        "p50": 7.494,
+        "p90": 8.98,
+        "p95": 9.05,
+        "p99": 10.485
+      },
+      "throughput_msgs_s": {
+        "avg": 65.044,
+        "peak": 102.0
+      },
+      "reliability": {
+        "error_rate_pct": 0.0,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "consistency_model": {
+        "target": "Service-coordinated durability with eventual multi-service visibility",
+        "notes": "The write path is durable, but reads and fan-out now cross service boundaries with explicit trace propagation."
+      },
+      "routing_strategy": {
+        "policy": "Gateway-mediated routing with service-specific downstream ownership.",
+        "objective": "Make routing decisions explicit as the system decomposes into independently scalable services."
+      },
+      "failure_model": {
+        "focus": "Inter-service latency, partial outages, and dependency amplification.",
+        "mechanisms": [
+          "X-Trace-Id propagation",
+          "Per-service health and status endpoints"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "Service-to-service hops, duplicated runtime overhead, and operational complexity.",
+        "notes": "Microservices add coordination and platform cost beyond raw compute."
+      },
+      "synthesis": {
+        "scaling_inflection": "The architecture becomes operationally composable, but routing, tracing, and cost must be managed as first-class concerns.",
+        "learning_goal": "End the curriculum with a measurable synthesis of decomposition trade-offs."
+      }
+    }
+  ]
+}

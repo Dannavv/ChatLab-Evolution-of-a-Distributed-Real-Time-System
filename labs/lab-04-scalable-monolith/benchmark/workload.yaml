@@ -1,14 +1,63 @@
-health_url: "http://localhost:8084/health"
-metrics_url: "http://localhost:8084/metrics"
-ws_url: "ws://localhost:8084/ws"
+benchmark_contract_version: 1
+name: lab04-scalable-monolith-benchmark
+lab: lab-04-scalable-monolith
+port: 8084
+ws_url: ws://localhost:8084/ws
+metrics_url: http://localhost:8084/metrics
+health_url: http://localhost:8084/health
+warmup_seconds: 8
 scrape_interval_seconds: 1
-
+summary_interval_seconds: 5
+message_payload_bytes: 256
+room_id: benchmark-comparison
+results_dir: benchmark/results
+comparison_profile:
+  comparable_scenario: comparison_standard
+  objective: Compare internal queueing and worker-pool gains against the pub/sub mesh.
+workload_model:
+  protocol: websocket
+  payload_shape: Same fixed-size benchmark payload as earlier labs.
+  concurrency_model: Deterministic virtual users with one message every 1000 ms in the comparison run.
+metrics_contract:
+  latency: Client-observed end-to-end latency.
+  throughput: Server-side processed messages per second.
+  error_rate: Dropped messages plus DB errors divided by total processed messages.
+  db_latency: Optional, reported only when persistence is in the path.
+traceability:
+  contract: trace_id and message_id survive enqueue, worker execution, and rebroadcast.
+  propagation: Client -> ingress queue -> worker pool -> client echo.
+consistency_model:
+  target: Immediate single-node visibility with queued internal processing
+  notes: Ordering is local to one node, but work now flows through explicit backpressure boundaries.
+failure_model:
+  focus: Queue saturation and worker backlog.
+  mechanisms:
+    - Drop accounting under pressure
+    - Memory tracking for queue growth
+routing_strategy:
+  policy: Single ingress node with internal worker-pool dispatch.
+  objective: Preserve single-node semantics while extending concurrency headroom.
+observability:
+  baseline: Prometheus metrics, memory tracking, and benchmark summaries.
+  logging: Message IDs identify enqueue-to-broadcast completion.
+cost_model:
+  dominant_axis: CPU and memory consumed by queue depth and worker concurrency.
+  notes: Cost stays local, but burst handling improves.
+synthesis:
+  scaling_inflection: Queueing delays replace lock contention as the dominant bottleneck.
+  learning_goal: Formalize backpressure before moving into cloud-native decomposition.
 scenarios:
-  scaling_monolith:
-    description: "Benchmark high-concurrency monolith with worker pool"
+  comparison_standard:
+    description: Fair cross-lab comparison scenario with fixed duration and payload size.
     message_interval_ms: 1000
     stages:
-      - duration: "1m"
+      - duration: 1m
+        target_vus: 100
+  scaling_monolith:
+    description: Benchmark high-concurrency monolith with worker pool.
+    message_interval_ms: 1000
+    stages:
+      - duration: 1m
         target_vus: 200
-      - duration: "1m"
+      - duration: 1m
         target_vus: 500

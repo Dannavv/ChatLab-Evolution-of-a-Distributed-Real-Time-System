@@ -1,0 +1,141 @@
+{
+  "run_id": "lab07__presence_scaling__20260419T145936Z",
+  "lab": "lab-07-real-time-presence-and-delivery",
+  "scenario": "presence_scaling",
+  "description": "Benchmark real-time presence and state synchronization.",
+  "started_at_utc": "2026-04-19T14:59:36.568937Z",
+  "benchmark_contract_version": 1,
+  "comparison_profile": {
+    "comparable_scenario": "comparison_standard",
+    "objective": "Compare high-frequency ephemeral state against the resilience-focused pipeline."
+  },
+  "workload_model": {
+    "protocol": "websocket",
+    "payload_shape": "Same fixed-size benchmark payload as earlier labs.",
+    "concurrency_model": "Deterministic virtual users with one message every 1000 ms in the comparison run."
+  },
+  "metrics_contract": {
+    "latency": "Client-observed end-to-end latency.",
+    "throughput": "Server-side processed messages per second.",
+    "error_rate": "Dropped messages plus DB errors divided by total processed messages.",
+    "db_latency": "Optional, reported only when durable delivery paths are active."
+  },
+  "traceability": {
+    "contract": "trace_id and message_id identify message, presence, and delivery events across fan-out.",
+    "propagation": "Client -> presence node -> ephemeral state fan-out -> client echo."
+  },
+  "consistency_model": {
+    "target": "Mixed model with eventual presence convergence",
+    "notes": "Presence and typing are intentionally softer-consistency signals than persisted messages."
+  },
+  "failure_model": {
+    "focus": "Stale presence, fan-out lag, and delivery marker drift.",
+    "mechanisms": [
+      "Duplicate detection",
+      "Dropped-message counters"
+    ]
+  },
+  "routing_strategy": {
+    "policy": "Stateful websocket routing with node-local ephemeral coordination.",
+    "objective": "Prioritize freshness for high-frequency signals without forcing full durability."
+  },
+  "observability": {
+    "baseline": "Prometheus metrics plus benchmark visibility into connection count and throughput.",
+    "logging": "Message IDs and event IDs support correlation of presence-state fan-out."
+  },
+  "cost_model": {
+    "dominant_axis": "Memory footprint and websocket session density.",
+    "notes": "Ephemeral real-time state consumes memory before it consumes storage."
+  },
+  "synthesis": {
+    "scaling_inflection": "Presence turns state freshness into a first-class scaling problem separate from message durability.",
+    "learning_goal": "Separate soft-state coordination from durable messaging semantics."
+  },
+  "workload": {
+    "benchmark_contract_version": 1,
+    "name": "lab07-presence-benchmark",
+    "lab": "lab-07-real-time-presence-and-delivery",
+    "port": 8088,
+    "ws_url": "ws://localhost:8088/ws",
+    "metrics_url": "http://localhost:8088/metrics",
+    "health_url": "http://localhost:8088/health",
+    "warmup_seconds": 8,
+    "scrape_interval_seconds": 1,
+    "summary_interval_seconds": 5,
+    "message_payload_bytes": 256,
+    "room_id": "benchmark-comparison",
+    "results_dir": "benchmark/results",
+    "comparison_profile": {
+      "comparable_scenario": "comparison_standard",
+      "objective": "Compare high-frequency ephemeral state against the resilience-focused pipeline."
+    },
+    "workload_model": {
+      "protocol": "websocket",
+      "payload_shape": "Same fixed-size benchmark payload as earlier labs.",
+      "concurrency_model": "Deterministic virtual users with one message every 1000 ms in the comparison run."
+    },
+    "metrics_contract": {
+      "latency": "Client-observed end-to-end latency.",
+      "throughput": "Server-side processed messages per second.",
+      "error_rate": "Dropped messages plus DB errors divided by total processed messages.",
+      "db_latency": "Optional, reported only when durable delivery paths are active."
+    },
+    "traceability": {
+      "contract": "trace_id and message_id identify message, presence, and delivery events across fan-out.",
+      "propagation": "Client -> presence node -> ephemeral state fan-out -> client echo."
+    },
+    "consistency_model": {
+      "target": "Mixed model with eventual presence convergence",
+      "notes": "Presence and typing are intentionally softer-consistency signals than persisted messages."
+    },
+    "failure_model": {
+      "focus": "Stale presence, fan-out lag, and delivery marker drift.",
+      "mechanisms": [
+        "Duplicate detection",
+        "Dropped-message counters"
+      ]
+    },
+    "routing_strategy": {
+      "policy": "Stateful websocket routing with node-local ephemeral coordination.",
+      "objective": "Prioritize freshness for high-frequency signals without forcing full durability."
+    },
+    "observability": {
+      "baseline": "Prometheus metrics plus benchmark visibility into connection count and throughput.",
+      "logging": "Message IDs and event IDs support correlation of presence-state fan-out."
+    },
+    "cost_model": {
+      "dominant_axis": "Memory footprint and websocket session density.",
+      "notes": "Ephemeral real-time state consumes memory before it consumes storage."
+    },
+    "synthesis": {
+      "scaling_inflection": "Presence turns state freshness into a first-class scaling problem separate from message durability.",
+      "learning_goal": "Separate soft-state coordination from durable messaging semantics."
+    },
+    "scenarios": {
+      "comparison_standard": {
+        "description": "Fair cross-lab comparison scenario with fixed duration and payload size.",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 100
+          }
+        ]
+      },
+      "presence_scaling": {
+        "description": "Benchmark real-time presence and state synchronization.",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 100
+          },
+          {
+            "duration": "1m",
+            "target_vus": 400
+          }
+        ]
+      }
+    }
+  }
+}

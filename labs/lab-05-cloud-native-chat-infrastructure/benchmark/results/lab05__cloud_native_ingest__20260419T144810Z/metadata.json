@@ -1,0 +1,141 @@
+{
+  "run_id": "lab05__cloud_native_ingest__20260419T144810Z",
+  "lab": "lab-05-cloud-native-chat-infrastructure",
+  "scenario": "cloud_native_ingest",
+  "description": "Benchmark cloud-native ingest pipeline.",
+  "started_at_utc": "2026-04-19T14:48:10.377768Z",
+  "benchmark_contract_version": 1,
+  "comparison_profile": {
+    "comparable_scenario": "comparison_standard",
+    "objective": "Compare async ingest and worker decoupling against the scalable monolith."
+  },
+  "workload_model": {
+    "protocol": "websocket",
+    "payload_shape": "Same fixed-size benchmark payload as earlier labs.",
+    "concurrency_model": "Deterministic virtual users with one message every 1000 ms in the comparison run."
+  },
+  "metrics_contract": {
+    "latency": "Client-observed end-to-end latency.",
+    "throughput": "Server-side processed messages per second.",
+    "error_rate": "Dropped messages plus DB errors divided by total processed messages.",
+    "db_latency": "Database query latency when worker persistence is active."
+  },
+  "traceability": {
+    "contract": "trace_id and message_id propagate through API ingress, queue handoff, worker processing, and echo.",
+    "propagation": "Client -> API -> Redis queue -> worker -> storage and rebroadcast."
+  },
+  "consistency_model": {
+    "target": "Async durable processing with eventual visibility",
+    "notes": "Ingest and processing are decoupled; acknowledgement and final visibility may diverge."
+  },
+  "failure_model": {
+    "focus": "Queue buildup, worker slowness, and ingest/worker desynchronization.",
+    "mechanisms": [
+      "Retry-friendly asynchronous handoff",
+      "Drop accounting and DB error counters"
+    ]
+  },
+  "routing_strategy": {
+    "policy": "API ingress with queue-based worker dispatch.",
+    "objective": "Separate burst absorption from durable processing."
+  },
+  "observability": {
+    "baseline": "Prometheus metrics across API and worker components.",
+    "logging": "Message IDs can be followed across asynchronous stages in benchmark artifacts."
+  },
+  "cost_model": {
+    "dominant_axis": "Queue infrastructure, worker CPU, and database writes.",
+    "notes": "Cost shifts toward managed messaging and background processing capacity."
+  },
+  "synthesis": {
+    "scaling_inflection": "Burst tolerance improves, but end-to-end semantics are now explicitly asynchronous.",
+    "learning_goal": "Introduce cloud-native decomposition without losing benchmark comparability."
+  },
+  "workload": {
+    "benchmark_contract_version": 1,
+    "name": "lab05-cloud-native-benchmark",
+    "lab": "lab-05-cloud-native-chat-infrastructure",
+    "port": 8085,
+    "ws_url": "ws://localhost:8085/ws",
+    "metrics_url": "http://localhost:8085/metrics",
+    "health_url": "http://localhost:8085/health",
+    "warmup_seconds": 8,
+    "scrape_interval_seconds": 1,
+    "summary_interval_seconds": 5,
+    "message_payload_bytes": 256,
+    "room_id": "benchmark-comparison",
+    "results_dir": "benchmark/results",
+    "comparison_profile": {
+      "comparable_scenario": "comparison_standard",
+      "objective": "Compare async ingest and worker decoupling against the scalable monolith."
+    },
+    "workload_model": {
+      "protocol": "websocket",
+      "payload_shape": "Same fixed-size benchmark payload as earlier labs.",
+      "concurrency_model": "Deterministic virtual users with one message every 1000 ms in the comparison run."
+    },
+    "metrics_contract": {
+      "latency": "Client-observed end-to-end latency.",
+      "throughput": "Server-side processed messages per second.",
+      "error_rate": "Dropped messages plus DB errors divided by total processed messages.",
+      "db_latency": "Database query latency when worker persistence is active."
+    },
+    "traceability": {
+      "contract": "trace_id and message_id propagate through API ingress, queue handoff, worker processing, and echo.",
+      "propagation": "Client -> API -> Redis queue -> worker -> storage and rebroadcast."
+    },
+    "consistency_model": {
+      "target": "Async durable processing with eventual visibility",
+      "notes": "Ingest and processing are decoupled; acknowledgement and final visibility may diverge."
+    },
+    "failure_model": {
+      "focus": "Queue buildup, worker slowness, and ingest/worker desynchronization.",
+      "mechanisms": [
+        "Retry-friendly asynchronous handoff",
+        "Drop accounting and DB error counters"
+      ]
+    },
+    "routing_strategy": {
+      "policy": "API ingress with queue-based worker dispatch.",
+      "objective": "Separate burst absorption from durable processing."
+    },
+    "observability": {
+      "baseline": "Prometheus metrics across API and worker components.",
+      "logging": "Message IDs can be followed across asynchronous stages in benchmark artifacts."
+    },
+    "cost_model": {
+      "dominant_axis": "Queue infrastructure, worker CPU, and database writes.",
+      "notes": "Cost shifts toward managed messaging and background processing capacity."
+    },
+    "synthesis": {
+      "scaling_inflection": "Burst tolerance improves, but end-to-end semantics are now explicitly asynchronous.",
+      "learning_goal": "Introduce cloud-native decomposition without losing benchmark comparability."
+    },
+    "scenarios": {
+      "comparison_standard": {
+        "description": "Fair cross-lab comparison scenario with fixed duration and payload size.",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 100
+          }
+        ]
+      },
+      "cloud_native_ingest": {
+        "description": "Benchmark cloud-native ingest pipeline.",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 200
+          },
+          {
+            "duration": "1m",
+            "target_vus": 600
+          }
+        ]
+      }
+    }
+  }
+}

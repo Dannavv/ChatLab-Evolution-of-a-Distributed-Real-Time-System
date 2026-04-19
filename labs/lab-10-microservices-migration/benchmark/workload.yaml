@@ -1,14 +1,63 @@
-health_url: "http://localhost:8100/health"
-metrics_url: "http://localhost:8100/metrics"
-ws_url: "ws://localhost:8100/ws"
+benchmark_contract_version: 1
+name: lab10-microservices-benchmark
+lab: lab-10-microservices-migration
+port: 8100
+ws_url: ws://localhost:8100/ws
+metrics_url: http://localhost:8100/metrics
+health_url: http://localhost:8100/health
+warmup_seconds: 8
 scrape_interval_seconds: 1
-
+summary_interval_seconds: 5
+message_payload_bytes: 256
+room_id: benchmark-comparison
+results_dir: benchmark/results
+comparison_profile:
+  comparable_scenario: comparison_standard
+  objective: Compare service decomposition overhead against the secure monolith or mesh.
+workload_model:
+  protocol: websocket
+  payload_shape: Same fixed-size benchmark payload as earlier labs.
+  concurrency_model: Deterministic virtual users with one message every 1000 ms in the comparison run.
+metrics_contract:
+  latency: Client-observed end-to-end latency across gateway and backend services.
+  throughput: Server-side processed messages per second.
+  error_rate: Dropped messages plus DB errors divided by total processed messages.
+  db_latency: Database query latency when message and history services persist data.
+traceability:
+  contract: trace_id and message_id propagate through gateway, message service, history service, and storage.
+  propagation: Client -> gateway -> message service -> database -> gateway/history service.
+consistency_model:
+  target: Service-coordinated durability with eventual multi-service visibility
+  notes: The write path is durable, but reads and fan-out now cross service boundaries with explicit trace propagation.
+failure_model:
+  focus: Inter-service latency, partial outages, and dependency amplification.
+  mechanisms:
+    - X-Trace-Id propagation
+    - Per-service health and status endpoints
+routing_strategy:
+  policy: Gateway-mediated routing with service-specific downstream ownership.
+  objective: Make routing decisions explicit as the system decomposes into independently scalable services.
+observability:
+  baseline: Prometheus metrics plus trace IDs propagated through HTTP headers and messages.
+  logging: Trace IDs support end-to-end message follow-through across services.
+cost_model:
+  dominant_axis: Service-to-service hops, duplicated runtime overhead, and operational complexity.
+  notes: Microservices add coordination and platform cost beyond raw compute.
+synthesis:
+  scaling_inflection: The architecture becomes operationally composable, but routing, tracing, and cost must be managed as first-class concerns.
+  learning_goal: End the curriculum with a measurable synthesis of decomposition trade-offs.
 scenarios:
-  microservices_mesh:
-    description: "Benchmark Microservices Mesh (Gateway -> Message Service -> DB)"
+  comparison_standard:
+    description: Fair cross-lab comparison scenario with fixed duration and payload size.
     message_interval_ms: 1000
     stages:
-      - duration: "1m"
+      - duration: 1m
         target_vus: 100
-      - duration: "1m"
+  microservices_mesh:
+    description: Benchmark microservices mesh.
+    message_interval_ms: 1000
+    stages:
+      - duration: 1m
+        target_vus: 100
+      - duration: 1m
         target_vus: 400

@@ -1,28 +1,67 @@
-health_url: "http://localhost:8080/health"
-metrics_url: "http://localhost:8080/metrics"
-ws_url: "ws://localhost:8080/ws"
+benchmark_contract_version: 1
+name: lab02-persistence-benchmark
+lab: lab-02-persistence-layer
+port: 8080
+ws_url: ws://localhost:8080/ws
+metrics_url: http://localhost:8080/metrics
+health_url: http://localhost:8080/health
+warmup_seconds: 8
 scrape_interval_seconds: 1
 summary_interval_seconds: 5
 message_payload_bytes: 256
 room_id: benchmark-comparison
-
+results_dir: benchmark/results
+comparison_profile:
+  comparable_scenario: comparison_standard
+  objective: Compare the persistence tax against the Lab 01 in-memory baseline.
+workload_model:
+  protocol: websocket
+  payload_shape: Same fixed-size benchmark payload as Lab 01.
+  concurrency_model: Deterministic virtual users with one message every 1000 ms in the comparison run.
+metrics_contract:
+  latency: Client-observed end-to-end latency.
+  throughput: Server-side processed messages per second.
+  error_rate: Dropped messages plus DB errors divided by total processed messages.
+  db_latency: Database query latency from Prometheus histograms.
+traceability:
+  contract: trace_id and message_id remain stable through ingest, persistence, and echo paths.
+  propagation: Client -> server -> database write -> client echo.
+consistency_model:
+  target: Strong single-writer durability
+  notes: The primary server acknowledges after durable write on one database.
+failure_model:
+  focus: Write amplification, database stalls, and durable-path errors.
+  mechanisms:
+    - DB error counters
+    - History replay for persisted state
+routing_strategy:
+  policy: Direct client-to-single-node routing with synchronous write-through to storage.
+  objective: Measure durability cost before introducing horizontal distribution.
+observability:
+  baseline: Prometheus metrics, DB latency histogram, and benchmark summaries.
+  logging: Message IDs can be correlated between benchmark output and persisted rows.
+cost_model:
+  dominant_axis: Database IOPS and write latency.
+  notes: Persistence introduces storage and connection overhead.
+synthesis:
+  scaling_inflection: Durability improves correctness but adds a measurable synchronous write tax.
+  learning_goal: Make consistency and storage cost explicit before scaling out.
 scenarios:
   comparison_standard:
-    description: "Fair cross-lab comparison scenario with fixed duration and payload size"
+    description: Fair cross-lab comparison scenario with fixed duration and payload size.
     message_interval_ms: 1000
     stages:
-      - duration: "1m"
+      - duration: 1m
         target_vus: 100
   persistence_standard:
-    description: "Standard persistence load (100 VUs)"
+    description: Standard persistence load.
     message_interval_ms: 1000
     stages:
-      - duration: "1m"
+      - duration: 1m
         target_vus: 100
-  
   persistence_stress:
-    description: "High-concurrency stress test (500 VUs)"
+    description: High-concurrency stress test.
     message_interval_ms: 500
     stages:
-      - duration: "2m"
+      - duration: 2m
         target_vus: 500

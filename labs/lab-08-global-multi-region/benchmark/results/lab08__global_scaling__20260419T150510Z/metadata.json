@@ -1,0 +1,141 @@
+{
+  "run_id": "lab08__global_scaling__20260419T150510Z",
+  "lab": "lab-08-global-multi-region",
+  "scenario": "global_scaling",
+  "description": "Benchmark global multi-region synchronization via regional bridge.",
+  "started_at_utc": "2026-04-19T15:05:10.909451Z",
+  "benchmark_contract_version": 1,
+  "comparison_profile": {
+    "comparable_scenario": "comparison_standard",
+    "objective": "Compare regional isolation and bridge replication against the single-region presence design."
+  },
+  "workload_model": {
+    "protocol": "websocket",
+    "payload_shape": "Same fixed-size benchmark payload as earlier labs.",
+    "concurrency_model": "Deterministic virtual users with one message every 1000 ms in the comparison run."
+  },
+  "metrics_contract": {
+    "latency": "Client-observed end-to-end latency for the selected regional endpoint.",
+    "throughput": "Server-side processed messages per second.",
+    "error_rate": "Dropped messages plus DB errors divided by total processed messages.",
+    "db_latency": "Optional, reported only when a persistence path exists."
+  },
+  "traceability": {
+    "contract": "trace_id and message_id survive regional ingest, bridge forwarding, and remote rebroadcast.",
+    "propagation": "Client -> local region -> bridge -> remote region -> client echo."
+  },
+  "consistency_model": {
+    "target": "Eventual cross-region convergence",
+    "notes": "Local latency remains fast, while remote visibility is asynchronous and physically bounded."
+  },
+  "failure_model": {
+    "focus": "Bridge lag, replication backlog, and regional isolation during partial failure.",
+    "mechanisms": [
+      "Duplicate suppression by event ID",
+      "Forwarded and dropped bridge counters"
+    ]
+  },
+  "routing_strategy": {
+    "policy": "Latency-based regional affinity with asynchronous bridge replication.",
+    "objective": "Keep local traffic local and push global consistency off the synchronous path."
+  },
+  "observability": {
+    "baseline": "Prometheus metrics on regional nodes and the bridge service.",
+    "logging": "Event IDs provide the cross-component contract for following a message between regions."
+  },
+  "cost_model": {
+    "dominant_axis": "Cross-region egress and duplicated regional infrastructure.",
+    "notes": "Geography introduces network and operational cost that scale with replication volume."
+  },
+  "synthesis": {
+    "scaling_inflection": "Geography forces a formal consistency trade-off and a formal routing policy.",
+    "learning_goal": "Make regional routing and eventual global convergence explicit."
+  },
+  "workload": {
+    "benchmark_contract_version": 1,
+    "name": "lab08-global-benchmark",
+    "lab": "lab-08-global-multi-region",
+    "port": 8090,
+    "ws_url": "ws://localhost:8090/ws",
+    "metrics_url": "http://localhost:8090/metrics",
+    "health_url": "http://localhost:8090/health",
+    "warmup_seconds": 8,
+    "scrape_interval_seconds": 1,
+    "summary_interval_seconds": 5,
+    "message_payload_bytes": 256,
+    "room_id": "benchmark-comparison",
+    "results_dir": "benchmark/results",
+    "comparison_profile": {
+      "comparable_scenario": "comparison_standard",
+      "objective": "Compare regional isolation and bridge replication against the single-region presence design."
+    },
+    "workload_model": {
+      "protocol": "websocket",
+      "payload_shape": "Same fixed-size benchmark payload as earlier labs.",
+      "concurrency_model": "Deterministic virtual users with one message every 1000 ms in the comparison run."
+    },
+    "metrics_contract": {
+      "latency": "Client-observed end-to-end latency for the selected regional endpoint.",
+      "throughput": "Server-side processed messages per second.",
+      "error_rate": "Dropped messages plus DB errors divided by total processed messages.",
+      "db_latency": "Optional, reported only when a persistence path exists."
+    },
+    "traceability": {
+      "contract": "trace_id and message_id survive regional ingest, bridge forwarding, and remote rebroadcast.",
+      "propagation": "Client -> local region -> bridge -> remote region -> client echo."
+    },
+    "consistency_model": {
+      "target": "Eventual cross-region convergence",
+      "notes": "Local latency remains fast, while remote visibility is asynchronous and physically bounded."
+    },
+    "failure_model": {
+      "focus": "Bridge lag, replication backlog, and regional isolation during partial failure.",
+      "mechanisms": [
+        "Duplicate suppression by event ID",
+        "Forwarded and dropped bridge counters"
+      ]
+    },
+    "routing_strategy": {
+      "policy": "Latency-based regional affinity with asynchronous bridge replication.",
+      "objective": "Keep local traffic local and push global consistency off the synchronous path."
+    },
+    "observability": {
+      "baseline": "Prometheus metrics on regional nodes and the bridge service.",
+      "logging": "Event IDs provide the cross-component contract for following a message between regions."
+    },
+    "cost_model": {
+      "dominant_axis": "Cross-region egress and duplicated regional infrastructure.",
+      "notes": "Geography introduces network and operational cost that scale with replication volume."
+    },
+    "synthesis": {
+      "scaling_inflection": "Geography forces a formal consistency trade-off and a formal routing policy.",
+      "learning_goal": "Make regional routing and eventual global convergence explicit."
+    },
+    "scenarios": {
+      "comparison_standard": {
+        "description": "Fair cross-lab comparison scenario with fixed duration and payload size.",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 100
+          }
+        ]
+      },
+      "global_scaling": {
+        "description": "Benchmark global multi-region synchronization via regional bridge.",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 100
+          },
+          {
+            "duration": "1m",
+            "target_vus": 400
+          }
+        ]
+      }
+    }
+  }
+}

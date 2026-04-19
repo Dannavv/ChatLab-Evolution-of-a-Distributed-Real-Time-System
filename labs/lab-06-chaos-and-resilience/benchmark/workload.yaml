@@ -1,14 +1,64 @@
-health_url: "http://localhost:8086/health"
-metrics_url: "http://localhost:8086/metrics"
-ws_url: "ws://localhost:8086/ws"
+benchmark_contract_version: 1
+name: lab06-resilience-benchmark
+lab: lab-06-chaos-and-resilience
+port: 8086
+ws_url: ws://localhost:8086/ws
+metrics_url: http://localhost:8086/metrics
+health_url: http://localhost:8086/health
+warmup_seconds: 8
 scrape_interval_seconds: 1
-
+summary_interval_seconds: 5
+message_payload_bytes: 256
+room_id: benchmark-comparison
+results_dir: benchmark/results
+comparison_profile:
+  comparable_scenario: comparison_standard
+  objective: Compare resilience controls against the cloud-native baseline under the same workload.
+workload_model:
+  protocol: websocket
+  payload_shape: Same fixed-size benchmark payload as earlier labs.
+  concurrency_model: Deterministic virtual users with one message every 1000 ms in the comparison run.
+metrics_contract:
+  latency: Client-observed end-to-end latency.
+  throughput: Server-side processed messages per second.
+  error_rate: Dropped messages plus DB errors divided by total processed messages.
+  db_latency: Database query latency when retries reach persistence.
+traceability:
+  contract: trace_id and message_id survive retries, dead-letter handling, and final broadcast.
+  propagation: Client -> API -> resilient queue/worker path -> storage and echo.
+consistency_model:
+  target: Eventual durability with resilience controls
+  notes: Retries preserve delivery intent, but visibility may be delayed by protection mechanisms.
+failure_model:
+  focus: Circuit breaking, retries, dead-letter routing, and degraded dependencies.
+  mechanisms:
+    - Retry loops
+    - Dead-letter accounting
+    - Backpressure and drop counters
+routing_strategy:
+  policy: API ingress with resilient worker pipeline.
+  objective: Trade some latency for higher survival under downstream failure.
+observability:
+  baseline: Prometheus metrics plus benchmark summaries that surface delivery loss.
+  logging: Message IDs are intended to identify retry and dead-letter paths.
+cost_model:
+  dominant_axis: Retry amplification and spare capacity for fault tolerance.
+  notes: Reliability adds operational overhead even when latency stays acceptable.
+synthesis:
+  scaling_inflection: Resilience protects throughput during failure, but it must be measured as an explicit trade-off.
+  learning_goal: Make failure handling part of the benchmark contract instead of an afterthought.
 scenarios:
-  resilience_stress:
-    description: "Benchmark Resilient Ingest with Circuit Breakers & Retries"
+  comparison_standard:
+    description: Fair cross-lab comparison scenario with fixed duration and payload size.
     message_interval_ms: 1000
     stages:
-      - duration: "1m"
+      - duration: 1m
+        target_vus: 100
+  resilience_stress:
+    description: Benchmark resilient ingest with circuit breakers and retries.
+    message_interval_ms: 1000
+    stages:
+      - duration: 1m
         target_vus: 200
-      - duration: "1m"
+      - duration: 1m
         target_vus: 800

@@ -3,6 +3,8 @@
 
 ChatLab is a progressive distributed-systems curriculum built around one evolving product: a real-time chat system. Each lab keeps the previous lab's core behavior in view, introduces one new production constraint, and then measures the architectural trade-offs with a local benchmark harness.
 
+The benchmark system now uses one shared contract across all labs, so workload shape, metric semantics, traceability, consistency, routing, failure posture, observability, cost, and final comparison all progress cumulatively instead of drifting per lab.
+
 ### 🎯 Project Objective
 The goal of the repository is to teach systems design through concrete, runnable deltas rather than isolated theory. We start with a single-process baseline, then add durability, distribution, queueing, resilience, presence, multi-region routing, security, and finally service decomposition.
 
@@ -18,6 +20,8 @@ The goal of the repository is to teach systems design through concrete, runnable
 ```bash
 python3 main.py
 ```
+
+You can also rebuild the unified comparison report from the orchestrator menu. The report is written to [results/comparison.md](./results/comparison.md).
 
 ### 📚 Repository Map
 | Lab | Theme | Lab README | Benchmark README |
@@ -55,26 +59,42 @@ python3 main.py
 - **Lab 10** breaks the final single service boundary into a gateway plus focused backend services.
 
 ### 📈 Benchmark Contract
-Across the labs, the benchmark harness follows the same broad pattern:
+Across the labs, the benchmark harness now follows one explicit repo-wide contract:
 - `benchmark/workload.yaml` defines the scenario shape.
-- `benchmark/run.py` starts the stack, waits for health, samples Prometheus, runs the load driver, and writes per-run artifacts.
-- `benchmark/plot.py` turns `timeseries.csv` into run and suite graphs.
+- `benchmark/run.py` delegates to the shared runner in `shared/benchmark/framework.py`.
+- `benchmark/plot.py` delegates to the shared plotting module in `shared/benchmark/plotting.py`.
 - `benchmark/results/<run_id>/` stores the artifacts for each executed scenario.
+- `shared/benchmark/report.py` synthesizes the latest comparable run from each lab into [results/comparison.md](./results/comparison.md).
 
-Outputs vary slightly by lab generation, but the common artifacts are:
+Common artifacts are:
 - `metadata.json`
 - `timeseries.csv`
+- `benchmark_summary.json`
 - `graphs/*.png`
 
-Labs 01 and 02 additionally export richer benchmark summaries because their harnesses were upgraded earlier in the curriculum.
+The shared contract itself is documented in [docs/benchmark-contract.md](./docs/benchmark-contract.md).
 
 ### 📏 Shared Metrics
-These metrics appear repeatedly across the README set:
-- `latency`: end-to-end time from client send to observed response, or the closest available server-side proxy in older harnesses.
+These metrics now have one global definition:
+- `latency`: end-to-end time from `client_send_ts` to observed receipt.
 - `throughput`: messages processed per second.
 - `error rate`: dropped, failed, or diverted work relative to processed traffic.
 - `db latency`: database time measured separately in labs that expose a persistence path.
 - `active connections`: concurrent WebSocket sessions under load.
+- `delivery ratio`: received messages relative to sent messages.
+- `duplicate ratio`: duplicate deliveries relative to sent messages.
+
+### 🔭 Cross-Lab Semantics
+Each lab workload now declares:
+- a consistent workload model
+- a traceability contract based on `trace_id` and `message_id`
+- an explicit consistency target
+- a failure model and mitigation focus
+- a formal routing policy
+- an observability baseline
+- a dominant cost axis
+
+That metadata is recorded in every run's `metadata.json` and surfaced in the repo-level comparison report.
 
 ### 🧠 Reading The Labs
 Each lab README now answers the same questions:
@@ -87,6 +107,7 @@ Each lab README now answers the same questions:
 ### ✅ Suggested Starting Point
 - Read [Lab 01](./labs/lab-01-monolith-baseline/README.md)
 - Run [Lab 01 Benchmark](./labs/lab-01-monolith-baseline/benchmark/README.md)
+- Read [Benchmark Contract](./docs/benchmark-contract.md)
 - Move sequentially through the roadmap
 
 ---

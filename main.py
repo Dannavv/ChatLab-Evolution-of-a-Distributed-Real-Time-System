@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from shared.benchmark.report import build_comparison_artifacts
+
 ROOT_DIR = Path(__file__).resolve().parent
 LABS_DIR = ROOT_DIR / 'labs'
 
@@ -45,6 +47,7 @@ def show_menu(labs):
     print(" 📡 Global Orchestrator")
     print("═"*60)
     print("0) [RUN ALL LABS (Full Regression Suite)]")
+    print("c) [REBUILD COMPARISON REPORT]")
     for i, lab in enumerate(labs, 1):
         # Human readable name
         display_name = lab.replace('-', ' ').title()
@@ -66,11 +69,18 @@ def main():
         if choice == 'q':
             print("👋 Exiting Orchestrator.")
             break
+
+        if choice == 'c':
+            report_path = build_comparison_artifacts()
+            print(f"✅ Comparison report rebuilt at: {report_path}")
+            continue
         
         if choice == '0':
             print(f"\n☢️  CRITICAL: STARTING GLOBAL REGRESSION ({len(labs)} Labs)...")
             for lab in labs:
                 run_lab_benchmark(lab)
+            report_path = build_comparison_artifacts()
+            print(f"📊 Comparison report updated: {report_path}")
             print("\n✅ GLOBAL REGRESSION COMPLETE.")
             break
         
@@ -81,7 +91,7 @@ def main():
             else:
                 print("❌ Invalid selection.")
         except ValueError:
-            print("❌ Please enter a number or 'q'.")
+            print("❌ Please enter a number, 'c', or 'q'.")
 
 if __name__ == "__main__":
     main()

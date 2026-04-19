@@ -1,0 +1,40 @@
+{
+  "latency_ms": {
+    "p50": 12.493,
+    "p90": 28.114,
+    "p95": 28.778,
+    "p99": 29.688
+  },
+  "db_latency_ms": {
+    "p50": 0.0,
+    "p90": 0.0,
+    "p95": 0.0,
+    "p99": 0.0
+  },
+  "throughput_msgs_s": {
+    "avg": 72.42,
+    "peak": 181.0
+  },
+  "totals": {
+    "messages_total": 10863,
+    "dropped_total": 0,
+    "db_errors_total": 0,
+    "sent": 0,
+    "received": 0,
+    "duplicates": 0
+  },
+  "reliability": {
+    "error_rate_pct": 0.0,
+    "delivery_ratio_pct": 0.0,
+    "duplicate_ratio_pct": 0.0
+  },
+  "latency_histogram": [
+    "  0-1  ms | # 9",
+    "  1-5  ms | ######## 38",
+    "  5-10 ms | ### 17",
+    " 10-25 ms | ######## 38",
+    " 25-50 ms | ######## 39",
+    " 50-100ms |  0",
+    "100ms+ |  0"
+  ]
+}
