@@ -47,6 +47,55 @@ In **Robust Mode**, we measure the **Synchronization Overhead**.
 
 ---
 
+## 📐 Distributed Contract (Explicit)
+
+### Consistency Model
+- **Global timeline**: eventual consistency across regions.
+- **Regional timeline**: near-real-time consistency inside each region.
+
+### Delivery Semantics
+- **Cross-region bridge replication**: at-least-once.
+- **Client-visible message stream**: effectively-once when event IDs are deduplicated by bridge/node caches.
+
+### Duplicate Delivery and Reordering
+- Duplicate delivery can occur during retries and bridge reconnect.
+- Nodes must drop already-seen event IDs.
+- Reordering is possible during lag or replay; clients should order by `(event_time, event_id)`.
+
+### User-Visible Behavior Under Failure
+1. **Region A down mid-message**:
+    - Users pinned to Region A disconnect or fail over.
+    - Users in Region B continue local chat.
+    - Cross-region propagation resumes after Region A recovery.
+2. **Network partition between regions**:
+    - Both regions continue in isolation mode.
+    - Global timeline diverges temporarily.
+    - Reconciliation merges streams once the bridge is restored.
+3. **Clock skew between nodes**:
+    - Messages may appear reordered near merge boundaries.
+    - Event IDs prevent duplicate replay even with skewed timestamps.
+4. **Partial replication (lagging region)**:
+    - Lagging region sees delayed remote messages.
+    - Local region writes remain fast and available.
+
+### Routing Strategy
+- Baseline: nearest-region ingress.
+- Production path: sticky region affinity per user/session.
+- Failover: route to secondary region when primary is unhealthy.
+- Progressive policy: combine affinity + latency + load to avoid overloaded regions.
+
+### Data Ownership
+- Recommended model in this lab: **home-region write ownership**.
+- Remote regions consume replicated events for read experience.
+- This avoids globally synchronous writes on every message.
+
+### Cost Awareness
+- Keep high-volume ephemeral state regional (typing/presence heartbeats).
+- Replicate only durable chat events globally.
+- Monitor bridge throughput and cross-region error rate as first-order cost signals.
+
+---
+
 ## 🔗 Endpoints
 - **Chat UI (US Region)**: [http://localhost:8090](http://localhost:8090)
 - **Chat UI (EU Region)**: [http://localhost:8091](http://localhost:8091)

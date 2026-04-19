@@ -45,11 +45,11 @@ python3 main.py
 ### Phase 4: Social Semantic (100k - 1M Users)
 7. **[Lab 07: Real-Time Presence](./labs/lab-07-real-time-presence-and-delivery)**
    * Presence Sync & Typing Signals. Focus: High-frequency ephemeral events and consistency.
-8. **Lab 08: Global Distribution** (Coming Soon)
+8. **[Lab 08: Global Distribution](./labs/lab-08-global-multi-region)**
 9. **[Lab 09: Message Security](./labs/lab-09-message-security)**
 
 ### Phase 5: The Mesh (1M+ Users)
-10. **Lab 10: Microservices Migration** (Coming Soon)
+10. **[Lab 10: Microservices Migration](./labs/lab-10-microservices-migration)**
 
 ---
 
@@ -59,6 +59,44 @@ All labs are instrumented with Prometheus to ensure fair benchmarking:
 - `chat_messages_total`: Throughput capacity.
 - `chat_message_latency_ms`: Ingest-to-Broadcast latency.
 - `chat_memory_bytes`: Memory efficiency per user.
+
+---
+## 🧭 Distributed Behavior Contract
+
+The advanced labs explicitly follow this contract so system behavior is predictable under load and failure.
+
+### Consistency model
+- **Global chat timeline**: eventual consistency across regions and services.
+- **Per-room ordering**: best effort by timestamp and event id, not strict global total order.
+
+### Delivery semantics
+- **Inter-service replication**: at-least-once.
+- **Client-visible delivery**: effectively-once where idempotency keys are enforced, otherwise at-least-once.
+
+### Duplicate and reordering policy
+- Duplicates are expected in distributed fan-out and retry paths.
+- Every advanced lab uses message identifiers and deduplication maps/sets where applicable.
+- Out-of-order arrival is handled at consumers with timestamp/event-id merge logic.
+
+### Failure scenarios to validate
+- Region outage during active message flow.
+- Inter-region partition with delayed reconciliation.
+- Clock skew between nodes.
+- Partial replication and lagging region catch-up.
+
+### Data ownership model
+- Default strategy in global labs: **home-region ownership for writes** plus selective replication for read experience.
+- Fully global replication is treated as an explicit tradeoff due to bandwidth and cost.
+
+### Routing policy evolution
+- Start: nearest-region routing.
+- Then: sticky affinity and failover.
+- Then: latency-aware and load-aware regional shifts.
+
+### Cost awareness
+- Separate mandatory global data from regional-only data.
+- Track cross-region replication volume and archive bandwidth.
+- Favor regional reads when global reads are not required.
 
 ---
 [Get Started with Lab 01](./labs/lab-01-monolith-baseline/README.md)

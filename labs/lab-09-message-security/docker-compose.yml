@@ -21,10 +21,10 @@ services:
       EVENTS_CHANNEL: chat:secure-events
       ROTATION_CHANNEL: chat:secure-rotations
       MASTER_SECRET: secure-chat-master
-      RATE_LIMIT_CAP: 5
+      RATE_LIMIT_CAP: 100
       RATE_WINDOW_MS: 10000
     ports:
-      - "8088:8080"
+      - "8094:8080"
     depends_on:
       redis:
         condition: service_healthy
@@ -50,7 +50,7 @@ services:
       RATE_LIMIT_CAP: 5
       RATE_WINDOW_MS: 10000
     ports:
-      - "8089:8080"
+      - "8095:8080"
     depends_on:
       redis:
         condition: service_healthy
@@ -67,7 +67,7 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
-      - "9095:9090"
+      - "9097:9090"
     depends_on:
       - chat-server-1
       - chat-server-2

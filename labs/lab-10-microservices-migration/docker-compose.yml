@@ -1,0 +1,116 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: chat
+    volumes:
+      - ./services/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 8
+    networks:
+      - chat-net
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - chat-net
+
+  gateway:
+    build:
+      context: ../../
+      dockerfile: labs/lab-10-microservices-migration/services/gateway/Dockerfile
+    environment:
+      NODE_ID: mesh-gateway-01
+      PORT: 8080
+      REDIS_URL: redis://redis:6379
+      MESSAGE_SERVICE_URL: http://message-service:8081
+      HISTORY_SERVICE_URL: http://history-service:8082
+      EVENTS_CHANNEL: chat:events
+      RATE_LIMIT_PER_SEC: 50
+      RATE_LIMIT_BURST: 100
+    ports:
+      - "8100:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  message-service:
+    build:
+      context: ../../
+      dockerfile: labs/lab-10-microservices-migration/services/message-service/Dockerfile
+    environment:
+      NODE_ID: mesh-message-01
+      PORT: 8081
+      DB_URL: postgres://user:pass@db:5432/chat?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      EVENTS_CHANNEL: chat:events
+    ports:
+      - "8101:8081"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  history-service:
+    build:
+      context: ../../
+      dockerfile: labs/lab-10-microservices-migration/services/history-service/Dockerfile
+    environment:
+      NODE_ID: mesh-history-01
+      PORT: 8082
+      DB_URL: postgres://user:pass@db:5432/chat?sslmode=disable
+    ports:
+      - "8102:8082"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9100:9090"
+    depends_on:
+      - gateway
+      - message-service
+      - history-service
+    networks:
+      - chat-net
+
+networks:
+  chat-net:
+    driver: bridge

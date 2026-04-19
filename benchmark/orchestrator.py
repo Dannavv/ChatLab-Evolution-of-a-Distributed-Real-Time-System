@@ -36,6 +36,8 @@ LAB_PORTS = {
     "lab-06-chaos-and-resilience": 8086,
     "lab-07-real-time-presence-and-delivery": [8088, 8089],
     "lab-08-global-multi-region": [8090, 8091],
+    "lab-09-message-security": [8094, 8095],
+    "lab-10-microservices-migration": [8100, 8101, 8102],
 }
 
 def parse_prometheus_metric(text, metric_name):

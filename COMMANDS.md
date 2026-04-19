@@ -43,11 +43,18 @@ cd labs/lab-07-real-time-presence-and-delivery && docker-compose up --build -d
 ```
 
 ### Lab 08: Global Distribution
-*Coming soon.*
+```bash
+cd labs/lab-08-global-multi-region && docker-compose up --build -d
+```
 
 ### Lab 09: Message Security and Trust
 ```bash
 cd labs/lab-09-message-security && docker-compose up --build -d
+```
+
+### Lab 10: Microservices Migration
+```bash
+cd labs/lab-10-microservices-migration && docker-compose up --build -d
 ```
 
 ---
@@ -91,9 +98,19 @@ python3 benchmark/orchestrator.py --labs lab-06-chaos-and-resilience
 python3 benchmark/orchestrator.py --labs lab-07-real-time-presence-and-delivery
 ```
 
+### Lab 08 Benchmark Target
+```bash
+python3 benchmark/orchestrator.py --labs lab-08-global-multi-region
+```
+
 ### Lab 09 Benchmark Target
 ```bash
 python3 benchmark/orchestrator.py --labs lab-09-message-security
+```
+
+### Lab 10 Benchmark Target
+```bash
+python3 benchmark/orchestrator.py --labs lab-10-microservices-migration
 ```
 
 ---

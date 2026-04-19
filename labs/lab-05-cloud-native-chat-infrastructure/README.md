@@ -69,6 +69,27 @@ The worker consumes from the queue and handles the "Heavy" side effects like DB 
 
 ---
 
+## 📐 Consistency and Ownership Contract
+
+### Consistency model
+- **Queue-to-store path**: eventual consistency.
+- **Ingest acknowledgement**: accepted on enqueue, not on durable write completion.
+
+### Delivery semantics
+- **Queue processing**: at-least-once.
+- **Durable side effects**: effectively-once only when idempotency keys and unique constraints are enforced.
+
+### Duplicate and ordering behavior
+- Duplicates may appear during retries or worker restart.
+- Ordering can diverge between enqueue order and final persisted order under pressure.
+
+### Data ownership and cost
+- Regional API nodes should own local ingest and queue buffering.
+- Durable chat history should be retained in PostgreSQL hot storage with selective archival to object storage.
+- Archive and replication traffic should be budgeted explicitly since storage and egress dominate cost at scale.
+
+---
+
 ## 🚀 Run the Infrastructure
 
 ```bash

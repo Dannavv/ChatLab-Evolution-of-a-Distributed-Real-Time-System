@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 10 - Microservices Migration</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111b;
+      --panel: rgba(10, 20, 31, 0.9);
+      --border: rgba(148, 163, 184, 0.2);
+      --text: #e8f3ff;
+      --muted: #93acc7;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 8% 8%, rgba(56, 189, 248, 0.16), transparent 24%),
+        radial-gradient(circle at 92% 14%, rgba(34, 197, 94, 0.12), transparent 22%),
+        linear-gradient(145deg, #041019 0%, #07111b 45%, #0d1a2a 100%);
+    }
+    .layout {
+      max-width: 1420px;
+      margin: 0 auto;
+      padding: 22px;
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 20px;
+    }
+    .hero {
+      grid-column: 1 / -1;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: var(--panel);
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: clamp(1.9rem, 4vw, 3.2rem); letter-spacing: -0.04em; }
+    .hero p { margin: 0; color: var(--muted); line-height: 1.6; max-width: 70ch; }
+    .badge {
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: rgba(56, 189, 248, 0.09);
+      white-space: nowrap;
+      color: #d8f1ff;
+    }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+    details { border-bottom: 1px solid rgba(148, 163, 184, 0.12); }
+    details:last-child { border-bottom: 0; }
+    summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 18px;
+      font-weight: 700;
+    }
+    summary::-webkit-details-marker { display: none; }
+    details[open] summary { color: var(--accent); }
+    .details-body { padding: 0 18px 16px; color: var(--muted); line-height: 1.7; }
+    .right { padding: 18px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .stat {
+      background: rgba(6, 12, 19, 0.76);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .stat label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 5px; }
+    .stat strong { font-size: 1.2rem; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    input, textarea, button {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      padding: 12px;
+      background: rgba(7, 14, 22, 0.9);
+      color: var(--text);
+      font: inherit;
+    }
+    textarea { min-height: 88px; grid-column: 1 / -1; resize: vertical; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    button.primary { background: linear-gradient(135deg, var(--accent), #2563eb); font-weight: 700; }
+    button.secondary { background: rgba(255, 255, 255, 0.05); }
+    .chat {
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 14px;
+      min-height: 280px;
+      max-height: 420px;
+      overflow: auto;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      background: rgba(2, 8, 16, 0.76);
+    }
+    .entry {
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(13, 23, 38, 0.92);
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 6px;
+    }
+    .service { color: var(--accent-2); }
+    .history {
+      margin-top: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 14px;
+      background: rgba(3, 8, 15, 0.72);
+      padding: 12px;
+    }
+    .history-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .history-list { display: grid; gap: 8px; }
+    .history-item { border-bottom: 1px solid rgba(148, 163, 184, 0.1); padding-bottom: 8px; }
+    .history-item:last-child { border-bottom: 0; padding-bottom: 0; }
+    .history-item .small { color: var(--muted); font-size: 0.8rem; }
+    @media (max-width: 1080px) { .layout { grid-template-columns: 1fr; } .hero { flex-direction: column; align-items: flex-start; } }
+    @media (max-width: 720px) { .layout { padding: 14px; } .stats { grid-template-columns: 1fr 1fr; } .controls { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header class="hero">
+      <div>
+        <h1>Lab 10: Microservices Migration</h1>
+        <p>This lab splits the chat system into a gateway, a write service, and a history service. The gateway handles websocket ingress, rate limiting, and trace propagation; the write service persists and publishes; the history service serves room history as a separate read path.</p>
+      </div>
+      <div class="badge">Gateway <span id="gateway-id">loading</span> · Rate <span id="rate">--</span>/s · Burst <span id="burst">--</span></div>
+    </header>
+
+    <section class="panel">
+      <details open>
+        <summary>Why split the monolith</summary>
+        <div class="details-body">A mature chat platform eventually needs separate deployable units. Splitting ingress, writes, and reads lets each concern scale and fail independently, while the gateway keeps the client contract stable.</div>
+      </details>
+      <details>
+        <summary>Tracing in this lab</summary>
+        <div class="details-body">Every message is stamped with a trace id at the gateway and forwarded through the write service into the database. The history service also reports the latest trace it saw so you can follow the request path across services.</div>
+      </details>
+      <details>
+        <summary>Rate limiting</summary>
+        <div class="details-body">The gateway enforces per-user token buckets. Bursty users will hit 429 responses while normal chat flows continue for other users. This highlights gateway-owned controls in a microservices design.</div>
+      </details>
+      <details>
+        <summary>What to observe</summary>
+        <div class="details-body">Watch gateway request latency, rate limit behavior, the write service status, and the history service query path. A successful migration keeps the client UI simple while moving complexity behind service boundaries.</div>
+      </details>
+    </section>
+
+    <section class="panel right">
+      <div class="stats">
+        <div class="stat"><label>Active Connections</label><strong id="connections">0</strong></div>
+        <div class="stat"><label>Trace ID</label><strong id="trace-id">-</strong></div>
+        <div class="stat"><label>History Count</label><strong id="history-count">0</strong></div>
+      </div>
+
+      <div class="controls">
+        <input id="user" placeholder="User" value="alex" />
+        <input id="room" placeholder="Room" value="general" />
+        <textarea id="message" placeholder="Write a chat message"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="send">Send</button>
+        <button class="secondary" id="burst10">Burst 10</button>
+        <button class="secondary" id="history">Load History</button>
+      </div>
+
+      <div class="chat" id="chat"></div>
+
+      <div class="history">
+        <div class="history-head">
+          <strong>Room History</strong>
+          <span class="small" id="history-room">general</span>
+        </div>
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+    const chatEl = document.getElementById('chat');
+    const historyListEl = document.getElementById('history-list');
+
+    function appendChat(item) {
+      const row = document.createElement('div');
+      row.className = 'entry';
+      row.innerHTML = `<div class="meta"><span>${item.user_id || 'guest'} / ${item.room_id || 'general'}</span><span class="service">${item.source_service || item.node_id || 'gateway'}</span></div><div>${item.content}</div><div class="small">trace: ${item.trace_id || '-'}</div>`;
+      chatEl.prepend(row);
+      while (chatEl.children.length > 24) chatEl.removeChild(chatEl.lastChild);
+    }
+
+    function historyItem(item) {
+      const row = document.createElement('div');
+      row.className = 'history-item';
+      row.innerHTML = `<div>${item.user_id}: ${item.content}</div><div class="small">${item.trace_id || '-'} · ${item.source_service || '-'}</div>`;
+      return row;
+    }
+
+    function payload(content) {
+      return {
+        user_id: document.getElementById('user').value || 'alex',
+        room_id: document.getElementById('room').value || 'general',
+        content,
+      };
+    }
+
+    function sendMessage(content) {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      socket.send(JSON.stringify(payload(content)));
+    }
+
+    document.getElementById('send').addEventListener('click', () => {
+      const box = document.getElementById('message');
+      const content = box.value.trim();
+      if (!content) return;
+      sendMessage(content);
+      box.value = '';
+    });
+
+    document.getElementById('burst10').addEventListener('click', () => {
+      for (let i = 1; i <= 10; i += 1) sendMessage(`burst-${i}`);
+    });
+
+    document.getElementById('history').addEventListener('click', async () => {
+      const room = document.getElementById('room').value || 'general';
+      const response = await fetch(`/history?room=${encodeURIComponent(room)}&limit=10`);
+      if (!response.ok) return;
+      const data = await response.json();
+      document.getElementById('history-room').textContent = data.room;
+      document.getElementById('history-count').textContent = String(data.count);
+      historyListEl.innerHTML = '';
+      data.messages.forEach(item => historyListEl.appendChild(historyItem(item)));
+    });
+
+    socket.addEventListener('open', () => appendChat({ user_id: 'SYSTEM', room_id: 'lab-10', content: 'gateway connected', source_service: 'ui', trace_id: '-' }));
+    socket.addEventListener('message', event => {
+      const msg = JSON.parse(event.data);
+      document.getElementById('trace-id').textContent = msg.trace_id || '-';
+      document.getElementById('connections').textContent = String(msg.connections || 0);
+      appendChat(msg);
+    });
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch('/status');
+        const data = await response.json();
+        document.getElementById('gateway-id').textContent = data.node_id;
+        document.getElementById('rate').textContent = data.rate_limit_per_sec;
+        document.getElementById('burst').textContent = data.rate_burst;
+      } catch (_e) {
+      }
+    }
+
+    refreshStatus();
+    setInterval(refreshStatus, 1000);
+  </script>
+</body>
+</html>

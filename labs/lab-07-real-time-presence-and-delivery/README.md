@@ -45,6 +45,12 @@ To support both legacy benchmarks and modern social features, the Lab 07 server 
 - **Presence Events**: JSON must include `"type": "presence"` and `"status": "online/offline"`.
 - **Typing Signals**: JSON must include `"type": "typing"`.
 
+### Behavioral Contract
+- **Consistency**: eventual consistency for ephemeral presence signals across nodes.
+- **Delivery**: at-least-once for presence and typing events.
+- **Duplicates**: acceptable for ephemeral events; clients should collapse repeated typing states.
+- **Reordering**: expected under burst load; client renderers should rely on event timestamps.
+
 ---
 
 ## 🔗 Endpoints
@@ -67,4 +73,4 @@ python3 main.py
 ```
 
 ---
-[Next Lab: Lab 09 (Message Security) ➡️](../lab-09-message-security/README.md)
+[Next Lab: Lab 08 (Global Distribution) ➡️](../lab-08-global-multi-region/README.md)

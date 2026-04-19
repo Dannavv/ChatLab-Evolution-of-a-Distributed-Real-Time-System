@@ -656,10 +656,6 @@ func redisClientFromURL(redisAddr string) (*redis.Client, error) {
 	return redis.NewClient(opts), nil
 }
 
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(protocol.HealthResponse{Status: "healthy", NodeID: nodeID})
-}
-
 func envOrDefault(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value

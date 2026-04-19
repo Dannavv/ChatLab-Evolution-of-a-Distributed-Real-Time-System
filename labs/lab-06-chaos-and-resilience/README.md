@@ -52,6 +52,12 @@ We use the `BRPOPLPUSH` pattern. A message is moved to a `chat:processing` list 
 The worker uses an `ON CONFLICT (message_id) DO NOTHING` pattern combined with `RowsAffected` checks.
 -   **Exactly-Once Processing**: Even during "Retry Storms," the system ensures that a message is only archived and broadcast to the UI exactly once.
 
+### 4. Consistency and Delivery Scope
+- **Ingest consistency**: eventual consistency from queue accept to final broadcast.
+- **Queue semantics**: at-least-once delivery across retries.
+- **Idempotent processing**: effectively-once side effects for durable writes.
+- **Reordering**: possible after retries; clients should not assume strict enqueue order under failure.
+
 ---
 
 ## 🧪 Chaos Stress Test Sequence
