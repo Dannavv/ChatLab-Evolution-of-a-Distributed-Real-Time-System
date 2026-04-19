@@ -1,0 +1,79 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - chat-net
+
+  chat-server-1:
+    build:
+      context: ../../
+      dockerfile: labs/lab-09-message-security/services/chat-server/Dockerfile
+    environment:
+      NODE_ID: secure-01
+      PORT: 8080
+      REDIS_URL: redis://redis:6379
+      EVENTS_CHANNEL: chat:secure-events
+      ROTATION_CHANNEL: chat:secure-rotations
+      MASTER_SECRET: secure-chat-master
+      RATE_LIMIT_CAP: 5
+      RATE_WINDOW_MS: 10000
+    ports:
+      - "8088:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  chat-server-2:
+    build:
+      context: ../../
+      dockerfile: labs/lab-09-message-security/services/chat-server/Dockerfile
+    environment:
+      NODE_ID: secure-02
+      PORT: 8080
+      REDIS_URL: redis://redis:6379
+      EVENTS_CHANNEL: chat:secure-events
+      ROTATION_CHANNEL: chat:secure-rotations
+      MASTER_SECRET: secure-chat-master
+      RATE_LIMIT_CAP: 5
+      RATE_WINDOW_MS: 10000
+    ports:
+      - "8089:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9095:9090"
+    depends_on:
+      - chat-server-1
+      - chat-server-2
+    networks:
+      - chat-net
+
+networks:
+  chat-net:
+    driver: bridge

@@ -1,0 +1,35 @@
+services:
+  chat-server:
+    build:
+      context: ../../
+      dockerfile: labs/lab-04-scalable-monolith/services/chat-server/Dockerfile
+    environment:
+      NODE_ID: scalable-01
+      PORT: 8080
+      WORKERS: 4
+      PROCESSING_DELAY_MS: 60
+      QUEUE_SIZE: 256
+    ports:
+      - "8084:8080"
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9092:9090"
+    depends_on:
+      - chat-server
+    networks:
+      - chat-net
+
+networks:
+  chat-net:
+    driver: bridge

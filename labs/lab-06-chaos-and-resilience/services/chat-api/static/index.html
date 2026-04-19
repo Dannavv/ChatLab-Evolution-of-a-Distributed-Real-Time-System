@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 06 - Chaos and Resilience</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #120b0d;
+      --panel: rgba(27, 16, 21, 0.88);
+      --border: rgba(244, 114, 182, 0.24);
+      --text: #fde7ef;
+      --muted: #f9a8d4;
+      --hot: #fb7185;
+      --ok: #34d399;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(251, 113, 133, 0.22), transparent 28%),
+        radial-gradient(circle at 86% 8%, rgba(244, 114, 182, 0.17), transparent 22%),
+        linear-gradient(150deg, #0f0709 0%, #140b0f 45%, #1b1118 100%);
+      min-height: 100vh;
+    }
+    .layout {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1.08fr 1fr;
+      gap: 18px;
+    }
+    .header {
+      grid-column: 1 / -1;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      background: var(--panel);
+    }
+    .header h1 { margin: 0 0 8px; font-size: clamp(1.85rem, 4vw, 3rem); }
+    .header p { margin: 0; color: var(--muted); line-height: 1.6; }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+    details { border-bottom: 1px solid rgba(244, 114, 182, 0.18); }
+    details:last-child { border-bottom: 0; }
+    summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 15px 16px;
+      font-weight: 700;
+    }
+    summary::-webkit-details-marker { display: none; }
+    details[open] summary { color: #fbcfe8; }
+    .details-body { padding: 0 16px 14px; color: var(--muted); line-height: 1.7; }
+    .right { padding: 16px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .stat {
+      border: 1px solid rgba(244, 114, 182, 0.2);
+      border-radius: 12px;
+      padding: 9px 10px;
+      background: rgba(15, 8, 11, 0.75);
+    }
+    .stat label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
+    .stat strong { font-size: 1.2rem; }
+    .danger { color: var(--hot); }
+    .safe { color: var(--ok); }
+    .controls { display: grid; gap: 8px; margin-bottom: 10px; }
+    input, textarea, button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid rgba(244, 114, 182, 0.26);
+      background: rgba(12, 7, 10, 0.8);
+      color: var(--text);
+      font: inherit;
+      padding: 10px;
+    }
+    textarea { min-height: 80px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .actions { display: flex; gap: 8px; margin: 8px 0 12px; flex-wrap: wrap; }
+    button.primary { background: linear-gradient(135deg, #fb7185, #ec4899); font-weight: 700; }
+    button.secondary { background: rgba(255, 255, 255, 0.06); }
+    .log {
+      border: 1px solid rgba(244, 114, 182, 0.22);
+      border-radius: 12px;
+      min-height: 280px;
+      max-height: 420px;
+      overflow: auto;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      background: rgba(8, 4, 7, 0.72);
+    }
+    .entry {
+      border: 1px solid rgba(244, 114, 182, 0.15);
+      border-radius: 10px;
+      padding: 8px;
+      background: rgba(30, 16, 23, 0.82);
+    }
+    .meta { color: var(--muted); font-size: 0.8rem; margin-bottom: 4px; display:flex; justify-content:space-between; }
+    @media (max-width: 1080px) { .layout { grid-template-columns: 1fr; } }
+    @media (max-width: 720px) { .stats { grid-template-columns: 1fr 1fr; } .grid2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <section class="header">
+      <h1>Lab 06: Chaos and Resilience</h1>
+      <p>Inject faults into the chat ingress path, trigger retries and breaker behavior, then verify the worker pipeline remains idempotent and controlled under failure pressure.</p>
+    </section>
+
+    <section class="panel">
+      <details open>
+        <summary>What this lab proves</summary>
+        <div class="details-body">Resilience is not just adding retries. This lab demonstrates bounded retries, circuit-breaker guardrails, and idempotent worker execution to prevent retry storms and duplicate delivery.</div>
+      </details>
+      <details>
+        <summary>Failure controls in this UI</summary>
+        <div class="details-body">Set API chaos drop-rate and artificial delay. As failure probability rises, enqueue retries increase. If failures stay consecutive, the circuit breaker opens and rejects requests briefly.</div>
+      </details>
+      <details>
+        <summary>Worker-side resilience</summary>
+        <div class="details-body">Workers use queue-inflight handoff, retry budget, dead-letter queue, and idempotency keys. This avoids duplicate writes and supports predictable recovery after transient errors.</div>
+      </details>
+      <details>
+        <summary>Suggested test loop</summary>
+        <div class="details-body">Start with no chaos and send bursts. Then set drop-rate to 0.4 and delay to 120ms. Watch breaker state and queue depth, then reset chaos to 0 to observe recovery.</div>
+      </details>
+    </section>
+
+    <section class="panel right">
+      <div class="stats">
+        <div class="stat"><label>Queue Depth</label><strong id="queue-depth">0</strong></div>
+        <div class="stat"><label>Connections</label><strong id="connections">0</strong></div>
+        <div class="stat"><label>Breaker</label><strong id="breaker" class="safe">closed</strong></div>
+      </div>
+
+      <div class="grid2 controls">
+        <input id="user" placeholder="User" value="maya" />
+        <input id="room" placeholder="Room" value="general" />
+      </div>
+      <textarea id="message" placeholder="Write a chat message"></textarea>
+
+      <div class="grid2 controls" style="margin-top: 10px;">
+        <div style="grid-column: 1 / -1; font-size: 0.8rem; color: var(--hot); font-weight: bold; margin-bottom: -5px;">API CHAOS (8086)</div>
+        <input id="drop-rate" type="number" min="0" max="1" step="0.05" value="0" placeholder="API Drop Rate" title="Probability of API rejecting the message" />
+        <input id="delay-ms" type="number" min="0" step="10" value="0" placeholder="API Delay (ms)" />
+      </div>
+
+      <div class="grid2 controls" style="margin-top: 10px;">
+        <div style="grid-column: 1 / -1; font-size: 0.8rem; color: var(--warn); font-weight: bold; margin-bottom: -5px;">WORKER CHAOS (8087)</div>
+        <input id="worker-fail-rate" type="number" min="0" max="1" step="0.05" value="0" placeholder="Worker Fail Rate" title="Probability of Worker failing to process" />
+        <input id="worker-delay-ms" type="number" min="0" step="10" value="0" placeholder="Worker Delay (ms)" />
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="send">Send</button>
+        <button class="secondary" id="burst">Burst x20</button>
+        <button class="secondary" id="apply-chaos">Apply All Chaos</button>
+        <button class="secondary" id="reset-chaos">Reset All</button>
+      </div>
+
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+
+  <script>
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+    const logEl = document.getElementById('log');
+
+    function appendLog(item) {
+      const row = document.createElement('div');
+      row.className = 'entry';
+      row.innerHTML = `<div class="meta"><span>${item.user_id || 'SYSTEM'} / ${item.room_id || 'lab-06'}</span><span>${item.node_id || 'node'} · ${item.connections || 0} conns</span></div><div>${item.content}</div>`;
+      logEl.prepend(row);
+      while (logEl.children.length > 40) {
+        logEl.removeChild(logEl.lastChild);
+      }
+    }
+
+    function payload(content) {
+      return {
+        user_id: document.getElementById('user').value || 'maya',
+        room_id: document.getElementById('room').value || 'general',
+        content,
+      };
+    }
+
+    function send(content) {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      socket.send(JSON.stringify(payload(content)));
+    }
+
+    async function applyChaos(dropRate, delayMs, workerFailRate, workerDelayMs) {
+      // API Chaos (Port 8086)
+      await fetch('/chaos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ drop_rate: dropRate, delay_ms: delayMs }),
+      });
+
+      // Worker Chaos (Port 8087)
+      try {
+        await fetch(`http://${location.hostname}:8087/chaos`, {
+          method: 'POST',
+          mode: 'no-cors', // Worker might not have CORS enabled, but we can fire-and-forget
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fail_rate: workerFailRate, delay_ms: workerDelayMs }),
+        });
+      } catch (e) { console.warn("Could not set worker chaos directly", e); }
+
+      appendLog({ user_id: 'SYSTEM', room_id: 'lab-06', content: `Chaos Set: API(drop=${dropRate}, delay=${delayMs}ms) | Worker(fail=${workerFailRate}, delay=${workerDelayMs}ms)`, node_id: 'ui', connections: 0 });
+    }
+
+    document.getElementById('send').addEventListener('click', () => {
+      const input = document.getElementById('message');
+      const content = input.value.trim();
+      if (!content) return;
+      send(content);
+      input.value = '';
+    });
+
+    document.getElementById('burst').addEventListener('click', () => {
+      for (let i = 1; i <= 20; i += 1) {
+        send(`burst message ${i}`);
+      }
+    });
+
+    document.getElementById('apply-chaos').addEventListener('click', async () => {
+      const drop = Number(document.getElementById('drop-rate').value || 0);
+      const delay = Number(document.getElementById('delay-ms').value || 0);
+      const wFail = Number(document.getElementById('worker-fail-rate').value || 0);
+      const wDelay = Number(document.getElementById('worker-delay-ms').value || 0);
+      await applyChaos(drop, delay, wFail, wDelay);
+    });
+
+    document.getElementById('reset-chaos').addEventListener('click', async () => {
+      document.getElementById('drop-rate').value = '0';
+      document.getElementById('delay-ms').value = '0';
+      document.getElementById('worker-fail-rate').value = '0';
+      document.getElementById('worker-delay-ms').value = '0';
+      await applyChaos(0, 0, 0, 0);
+    });
+
+    socket.addEventListener('open', () => appendLog({ user_id: 'SYSTEM', room_id: 'lab-06', content: 'Connected to chaos-resilience ingress', node_id: 'ui', connections: 0 }));
+    socket.addEventListener('message', e => {
+      const item = JSON.parse(e.data);
+      appendLog(item);
+    });
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch('/status');
+        const status = await response.json();
+        document.getElementById('queue-depth').textContent = String(status.queue_depth);
+        document.getElementById('connections').textContent = String(status.active_connections);
+        const breaker = document.getElementById('breaker');
+        breaker.textContent = status.breaker_open ? 'open' : 'closed';
+        breaker.className = status.breaker_open ? 'danger' : 'safe';
+      } catch (_e) {
+      }
+    }
+
+    refreshStatus();
+    setInterval(refreshStatus, 1000);
+  </script>
+</body>
+</html>

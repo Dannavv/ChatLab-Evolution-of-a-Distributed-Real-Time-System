@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 1s
+
+scrape_configs:
+  - job_name: chat-api
+    static_configs:
+      - targets: ["chat-api:8080"]
+
+  - job_name: chat-worker
+    static_configs:
+      - targets: ["chat-worker:8081"]

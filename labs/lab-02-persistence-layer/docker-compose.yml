@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  chat-server:
+    build:
+      context: ../../
+      dockerfile: labs/lab-02-persistence-layer/services/chat-server/Dockerfile
+    environment:
+      - DB_URL=postgres://user:pass@db:5432/chat?sslmode=disable
+    ports:
+      - "8080:8080"
+    networks:
+      - chat-net
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=chat
+    volumes:
+      - ./services/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chat-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - chat-net
+
+networks:
+  chat-net:
+    driver: bridge

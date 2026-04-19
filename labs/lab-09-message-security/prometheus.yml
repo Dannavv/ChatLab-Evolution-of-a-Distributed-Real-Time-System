@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 1s
+
+scrape_configs:
+  - job_name: chat-server-1
+    static_configs:
+      - targets: ["chat-server-1:8080"]
+
+  - job_name: chat-server-2
+    static_configs:
+      - targets: ["chat-server-2:8080"]

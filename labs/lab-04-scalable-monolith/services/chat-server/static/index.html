@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 04 - Scalable Monolith</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: rgba(11, 16, 32, 0.86);
+      --panel-2: rgba(18, 26, 48, 0.95);
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #e5eefc;
+      --muted: #93a4c3;
+      --accent: #5eead4;
+      --accent-2: #60a5fa;
+      --danger: #f87171;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.24), transparent 28%),
+        radial-gradient(circle at 80% 10%, rgba(94, 234, 212, 0.16), transparent 22%),
+        linear-gradient(160deg, #070b16 0%, #0b1020 45%, #101a33 100%);
+      min-height: 100vh;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-end;
+      padding: 18px 22px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(8, 15, 31, 0.92));
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      letter-spacing: -0.05em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 64ch;
+      line-height: 1.6;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(96, 165, 250, 0.12);
+      border: 1px solid rgba(96, 165, 250, 0.24);
+      color: #cfe2ff;
+      white-space: nowrap;
+      font-size: 0.92rem;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel .inner {
+      padding: 20px;
+    }
+
+    details {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    details:last-child { border-bottom: 0; }
+
+    summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 18px 20px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    details[open] summary {
+      color: var(--accent);
+    }
+
+    .details-body {
+      padding: 0 20px 18px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    .stat label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat strong {
+      font-size: 1.35rem;
+    }
+
+    .composer {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 12px;
+    }
+
+    .composer input, .composer button, .message-box {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(7, 11, 22, 0.75);
+      color: var(--text);
+      padding: 14px 14px;
+      font: inherit;
+    }
+
+    .composer input::placeholder { color: #6b7a9c; }
+
+    .composer .full { grid-column: 1 / -1; }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    button {
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+
+    .primary {
+      background: linear-gradient(135deg, var(--accent-2), #2563eb);
+      border-color: rgba(96, 165, 250, 0.4);
+    }
+
+    .secondary {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .console {
+      height: 360px;
+      overflow: auto;
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(2, 6, 23, 0.7);
+      display: grid;
+      gap: 10px;
+    }
+
+    .msg {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .msg.system {
+      border-color: rgba(94, 234, 212, 0.28);
+      background: rgba(6, 95, 70, 0.16);
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .message-box {
+      min-height: 96px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    .footer-note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 1080px) {
+      .page { grid-template-columns: 1fr; }
+      .hero { flex-direction: column; align-items: flex-start; }
+    }
+
+    @media (max-width: 720px) {
+      .page { padding: 14px; }
+      .stats, .composer { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <h1>Lab 04: Scalable Monolith</h1>
+        <p>Async message handling for a chat system that still runs as one deployment unit. Messages are accepted quickly, buffered in memory, and processed by background workers so the hot path stays responsive under bursty load.</p>
+      </div>
+      <div class="pill">Node <span id="node-id">loading</span> · Delay <span id="delay">--</span> ms · Queue <span id="queue-capacity">--</span></div>
+    </header>
+
+    <section class="panel">
+      <details open>
+        <summary>What this lab changes</summary>
+        <div class="details-body">
+          Lab 03 solved cross-node delivery. Lab 04 keeps the system monolithic, but shifts the expensive work out of the request path. Incoming chat messages enter a bounded queue, workers drain the queue in the background, and the live dashboard shows how many messages are waiting versus actively processed.
+        </div>
+      </details>
+      <details>
+        <summary>Why the queue matters</summary>
+        <div class="details-body">
+          A monolith can still scale if the server separates admission from processing. The queue lets WebSocket readers stay fast while worker goroutines handle downstream work. When the queue fills, the lab drops messages and increments metrics so you can see the cost of insufficient capacity.
+        </div>
+      </details>
+      <details>
+        <summary>What to watch</summary>
+        <div class="details-body">
+          Watch queue depth, busy workers, active connections, and message latency. A healthy server should keep the queue shallow, process messages steadily, and avoid sustained drops when you burst traffic from the UI or k6.
+        </div>
+      </details>
+      <details>
+        <summary>Run and benchmark</summary>
+        <div class="details-body">
+          Start the stack with Docker Compose, then open the UI and send bursts of messages. The same endpoints are available for load testing through the shared k6 harness.
+        </div>
+      </details>
+    </section>
+
+    <section class="panel">
+      <div class="inner">
+        <div class="stats">
+          <div class="stat"><label>Active Connections</label><strong id="active-connections">0</strong></div>
+          <div class="stat"><label>Queue Depth</label><strong id="queue-depth">0</strong></div>
+          <div class="stat"><label>Busy Workers</label><strong id="busy-workers">0</strong></div>
+          <div class="stat"><label>Processed</label><strong id="processed-count">0</strong></div>
+        </div>
+
+        <div class="composer">
+          <input id="user-id" placeholder="User ID" value="alex" />
+          <input id="room-id" placeholder="Room ID" value="general" />
+          <textarea id="message" class="message-box full" placeholder="Write a chat message"></textarea>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="send">Send Message</button>
+          <button class="secondary" id="burst-5">Burst x5</button>
+          <button class="secondary" id="burst-20">Burst x20</button>
+        </div>
+
+        <div class="console" id="console"></div>
+        <div class="footer-note">Messages sent from this tab go through the async queue before broadcast, so the dashboard should reflect queue pressure under bursts.</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const consoleEl = document.getElementById('console');
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+
+    const state = {
+      processed: 0,
+    };
+
+    function renderMessage(message) {
+      const item = document.createElement('div');
+      item.className = `msg ${message.user_id === 'SYSTEM' ? 'system' : ''}`;
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `<span>${message.user_id || 'guest'} · ${message.room_id || 'general'}</span><span>${message.node_id || 'local'} · ${message.connections || 0} connections</span>`;
+
+      const body = document.createElement('div');
+      body.textContent = message.content;
+
+      item.appendChild(meta);
+      item.appendChild(body);
+      consoleEl.prepend(item);
+
+      while (consoleEl.children.length > 18) {
+        consoleEl.removeChild(consoleEl.lastChild);
+      }
+    }
+
+    socket.addEventListener('open', () => renderMessage({ user_id: 'SYSTEM', room_id: 'lab-04', content: 'WebSocket connected', node_id: 'client', connections: 0 }));
+    socket.addEventListener('close', () => renderMessage({ user_id: 'SYSTEM', room_id: 'lab-04', content: 'WebSocket disconnected', node_id: 'client', connections: 0 }));
+
+    function sendMessage(content) {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      socket.send(JSON.stringify({
+        user_id: document.getElementById('user-id').value || 'alex',
+        room_id: document.getElementById('room-id').value || 'general',
+        content,
+      }));
+    }
+
+    document.getElementById('send').addEventListener('click', () => {
+      const message = document.getElementById('message');
+      if (!message.value.trim()) {
+        return;
+      }
+      sendMessage(message.value.trim());
+      message.value = '';
+    });
+
+    document.getElementById('burst-5').addEventListener('click', () => {
+      for (let index = 0; index < 5; index += 1) {
+        sendMessage(`burst 5 message ${index + 1}`);
+      }
+    });
+
+    document.getElementById('burst-20').addEventListener('click', () => {
+      for (let index = 0; index < 20; index += 1) {
+        sendMessage(`burst 20 message ${index + 1}`);
+      }
+    });
+
+    document.getElementById('message').addEventListener('keydown', event => {
+      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        document.getElementById('send').click();
+      }
+    });
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch('/status');
+        const data = await response.json();
+
+        document.getElementById('node-id').textContent = data.node_id;
+        document.getElementById('delay').textContent = data.processing_delay_ms;
+        document.getElementById('queue-capacity').textContent = data.queue_capacity;
+        document.getElementById('active-connections').textContent = data.active_connections;
+        document.getElementById('queue-depth').textContent = data.queue_depth;
+        document.getElementById('busy-workers').textContent = data.busy_workers;
+      } catch (error) {
+        renderMessage({ user_id: 'SYSTEM', room_id: 'lab-04', content: `Status fetch failed: ${error.message}`, node_id: 'client', connections: 0 });
+      }
+    }
+
+    refreshStatus();
+    setInterval(refreshStatus, 1000);
+
+    socket.addEventListener('message', event => {
+      const message = JSON.parse(event.data);
+      if (message.user_id !== 'SYSTEM') {
+        state.processed += 1;
+        document.getElementById('processed-count').textContent = state.processed;
+      }
+      renderMessage(message);
+    });
+  </script>
+</body>
+</html>

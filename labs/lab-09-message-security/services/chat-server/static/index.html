@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 09 - Message Security</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a0a12;
+      --panel: rgba(17, 16, 33, 0.9);
+      --border: rgba(129, 140, 248, 0.2);
+      --text: #edf0ff;
+      --muted: #b7c0f5;
+      --accent: #8b5cf6;
+      --accent-2: #22d3ee;
+      --danger: #fb7185;
+      --success: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, Segoe UI, sans-serif;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(139, 92, 246, 0.18), transparent 25%),
+        radial-gradient(circle at 88% 10%, rgba(34, 211, 238, 0.16), transparent 20%),
+        linear-gradient(150deg, #05050b 0%, #0a0a12 45%, #131328 100%);
+    }
+    .layout {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 22px;
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 20px;
+    }
+    .hero {
+      grid-column: 1 / -1;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(17, 16, 33, 0.96), rgba(8, 9, 18, 0.96));
+      padding: 18px 20px;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: clamp(2rem, 4vw, 3.4rem); letter-spacing: -0.04em; }
+    .hero p { margin: 0; color: var(--muted); line-height: 1.65; max-width: 82ch; }
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    }
+    details { border-bottom: 1px solid rgba(129, 140, 248, 0.14); }
+    details:last-child { border-bottom: 0; }
+    summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    summary::-webkit-details-marker { display: none; }
+    details[open] summary { color: var(--accent-2); }
+    .details-body { padding: 0 18px 16px; color: var(--muted); line-height: 1.7; }
+    .right { padding: 18px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .stat {
+      border-radius: 14px;
+      border: 1px solid rgba(129, 140, 248, 0.18);
+      background: rgba(8, 9, 18, 0.74);
+      padding: 12px 14px;
+    }
+    .stat label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    .stat strong { font-size: 1.3rem; }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    input, textarea, button {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(129, 140, 248, 0.24);
+      background: rgba(7, 8, 16, 0.82);
+      color: var(--text);
+      font: inherit;
+      padding: 12px;
+    }
+    textarea {
+      min-height: 90px;
+      grid-column: 1 / -1;
+      resize: vertical;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0 14px;
+    }
+    button { cursor: pointer; }
+    .primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      font-weight: 700;
+    }
+    .secondary { background: rgba(255, 255, 255, 0.05); }
+    .danger { background: rgba(251, 113, 133, 0.16); }
+    .log {
+      border: 1px solid rgba(129, 140, 248, 0.16);
+      border-radius: 14px;
+      min-height: 300px;
+      max-height: 420px;
+      overflow: auto;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      background: rgba(4, 4, 10, 0.72);
+    }
+    .entry {
+      border-radius: 12px;
+      border: 1px solid rgba(129, 140, 248, 0.16);
+      background: rgba(20, 20, 39, 0.84);
+      padding: 10px;
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 5px;
+    }
+    .badge-ok { color: var(--success); }
+    .badge-bad { color: var(--danger); }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .layout { padding: 14px; }
+      .stats { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header class="hero">
+      <h1>Lab 09: Message Security and Trust</h1>
+      <p>Secure the chat mesh with encrypted envelopes, HMAC signatures, replay protection, key rotation, and rate controls. The UI lets you send normal messages, inject tampered signatures, and rotate keys while watching both nodes converge on the same security state.</p>
+    </header>
+
+    <section class="panel">
+      <details open>
+        <summary>What this lab teaches</summary>
+        <div class="details-body">This lab focuses on trust boundaries inside a chat system: who can send, how messages are signed, how they are encrypted, and how the system reacts when signatures fail or replay attempts appear.</div>
+      </details>
+      <details>
+        <summary>Security mechanics</summary>
+        <div class="details-body">Each message is encrypted with AES-GCM and signed with an HMAC derived from the room key version. Nodes reject invalid signatures, drop replayed IDs, and rotate keys without taking the chat down.</div>
+      </details>
+      <details>
+        <summary>Abuse controls</summary>
+        <div class="details-body">Each user has a local token bucket. When one user sends too fast, the API stops accepting messages before the mesh gets flooded. The UI exposes the current rejection counters so you can see throttling and recovery.</div>
+      </details>
+      <details>
+        <summary>What to observe</summary>
+        <div class="details-body">Watch the current key version, accepted versus rejected counts, and the signature failure metrics. Rotate keys from the UI and confirm both nodes converge on the same version through Redis.</div>
+      </details>
+    </section>
+
+    <section class="panel right">
+      <div class="stats">
+        <div class="stat"><label>Active Connections</label><strong id="connections">0</strong></div>
+        <div class="stat"><label>Key Version</label><strong id="key-version">1</strong></div>
+        <div class="stat"><label>Accepted</label><strong id="accepted">0</strong></div>
+        <div class="stat"><label>Rejected</label><strong id="rejected">0</strong></div>
+      </div>
+
+      <div class="controls">
+        <input id="user" placeholder="User" value="ava" />
+        <input id="room" placeholder="Room" value="general" />
+        <textarea id="message" placeholder="Write a message"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="send">Send Secure Message</button>
+        <button class="secondary" id="tamper">Send Tampered</button>
+        <button class="secondary" id="burst">Burst x10</button>
+        <button class="danger" id="rotate">Rotate Key</button>
+      </div>
+
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+
+  <script>
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+    const logEl = document.getElementById('log');
+
+    function appendLog(item) {
+      const row = document.createElement('div');
+      row.className = 'entry';
+      const badgeClass = item.security_status === 'verified' || item.security_status === 'system' ? 'badge-ok' : (item.security_status === 'rejected' ? 'badge-bad' : '');
+      row.innerHTML = `<div class="meta"><span>${item.user_id || 'SYSTEM'} · ${item.room_id || 'lab-09'}</span><span class="${badgeClass}">${item.security_status || item.type || 'event'} · key ${item.key_version || '-'}</span></div><div>${item.content || item.status || ''}</div>`;
+      logEl.prepend(row);
+      while (logEl.children.length > 40) {
+        logEl.removeChild(logEl.lastChild);
+      }
+    }
+
+    function payload(content, tamperSignature = false) {
+      return {
+        user_id: document.getElementById('user').value || 'ava',
+        room_id: document.getElementById('room').value || 'general',
+        content,
+        tamper_signature: tamperSignature,
+      };
+    }
+
+    async function sendMessage(tamperSignature = false) {
+      const text = document.getElementById('message').value.trim() || 'secure message';
+      const response = await fetch('/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload(text, tamperSignature)),
+      });
+      if (!response.ok) {
+        appendLog({ user_id: 'SYSTEM', room_id: 'lab-09', content: `Send rejected: HTTP ${response.status}`, security_status: 'rejected', key_version: document.getElementById('key-version').textContent });
+      } else {
+        document.getElementById('message').value = '';
+      }
+    }
+
+    document.getElementById('send').addEventListener('click', () => sendMessage(false));
+    document.getElementById('tamper').addEventListener('click', () => sendMessage(true));
+    document.getElementById('burst').addEventListener('click', async () => {
+      for (let i = 1; i <= 10; i += 1) {
+        await sendMessage(false);
+      }
+    });
+    document.getElementById('rotate').addEventListener('click', async () => {
+      const response = await fetch('/rotate-key', { method: 'POST' });
+      if (response.ok) {
+        const data = await response.json();
+        appendLog({ user_id: 'SYSTEM', room_id: 'lab-09', content: `Key rotated to version ${data.version}`, security_status: 'system', key_version: data.version });
+      }
+    });
+
+    socket.addEventListener('open', () => appendLog({ user_id: 'SYSTEM', room_id: 'lab-09', content: 'Connected to secure chat mesh', security_status: 'system', key_version: 1 }));
+    socket.addEventListener('message', event => {
+      const item = JSON.parse(event.data);
+      appendLog(item);
+    });
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch('/status');
+        const data = await response.json();
+        document.getElementById('connections').textContent = String(data.active_connections);
+        document.getElementById('key-version').textContent = String(data.current_key_version);
+        document.getElementById('accepted').textContent = String(data.accepted_messages);
+        document.getElementById('rejected').textContent = String(data.rejected_messages);
+      } catch (_error) {
+      }
+    }
+
+    refreshStatus();
+    setInterval(refreshStatus, 1000);
+  </script>
+</body>
+</html>

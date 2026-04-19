@@ -1,0 +1,13 @@
+compute:
+  t3_medium: 0.0416 # USD per hour
+  t3_large: 0.0832
+
+networking:
+  egress_gb: 0.09 # USD per GB
+
+storage:
+  ebs_gb_month: 0.10
+
+managed_services:
+  redis_cache_t3_small: 0.034
+  kafka_cluster_base: 0.50 # USD per hour

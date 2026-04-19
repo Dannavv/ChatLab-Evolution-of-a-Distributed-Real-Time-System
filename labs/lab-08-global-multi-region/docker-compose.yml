@@ -1,0 +1,109 @@
+services:
+  redis-us:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - chat-net
+
+  redis-eu:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - chat-net
+
+  chat-server-us:
+    build:
+      context: ../../
+      dockerfile: labs/lab-08-global-multi-region/services/chat-server/Dockerfile
+    environment:
+      NODE_ID: global-us-01
+      REGION: us
+      PORT: 8080
+      REDIS_URL: redis://redis-us:6379
+      EVENTS_CHANNEL: chat:global-events
+    ports:
+      - "8090:8080"
+    depends_on:
+      redis-us:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  chat-server-eu:
+    build:
+      context: ../../
+      dockerfile: labs/lab-08-global-multi-region/services/chat-server/Dockerfile
+    environment:
+      NODE_ID: global-eu-01
+      REGION: eu
+      PORT: 8080
+      REDIS_URL: redis://redis-eu:6379
+      EVENTS_CHANNEL: chat:global-events
+    ports:
+      - "8091:8080"
+    depends_on:
+      redis-eu:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  bridge:
+    build:
+      context: ../../
+      dockerfile: labs/lab-08-global-multi-region/services/bridge/Dockerfile
+    environment:
+      PORT: 8082
+      REDIS_US_URL: redis://redis-us:6379
+      REDIS_EU_URL: redis://redis-eu:6379
+      EVENTS_CHANNEL: chat:global-events
+    ports:
+      - "8092:8082"
+    depends_on:
+      redis-us:
+        condition: service_healthy
+      redis-eu:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9096:9090"
+    depends_on:
+      - chat-server-us
+      - chat-server-eu
+      - bridge
+    networks:
+      - chat-net
+
+networks:
+  chat-net:
+    driver: bridge

@@ -1,0 +1,31 @@
+# Go
+bin/
+*.exe
+*.test
+*.prof
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Benchmarking Artifacts
+results/*.csv
+results/*.json
+results/lab-*_robust_report.csv
+# assets/benchmarks/*.png (Commented out: we NEED these for READMEs)
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 03 | Redis Pub/Sub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --panel: #ffffff;
+            --panel-2: #faf5ff;
+            --text: #111827;
+            --muted: #4b5563;
+            --border: #d1d5db;
+            --accent: #7c3aed;
+            --accent-2: #0f766e;
+            --terminal: #020617;
+            --ok: #22c55e;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top left, #ede9fe 0%, var(--bg) 42%);
+            color: var(--text);
+        }
+
+        .layout {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+        }
+
+        .left-pane {
+            border-right: 1px solid var(--border);
+            background: linear-gradient(180deg, #faf5ff 0%, #f8fafc 100%);
+            padding: 2rem 1.25rem;
+            overflow-y: auto;
+        }
+
+        .left-pane h1 {
+            margin: 0;
+            font-family: 'Libre Baskerville', serif;
+            font-size: 1.45rem;
+            line-height: 1.25;
+            color: var(--accent);
+        }
+
+        .left-pane p {
+            margin: 0.75rem 0 1.5rem;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        details {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--panel);
+            margin-bottom: 0.8rem;
+            overflow: hidden;
+        }
+
+        summary {
+            cursor: pointer;
+            list-style: none;
+            padding: 0.85rem 1rem;
+            font-weight: 700;
+            background: var(--panel-2);
+            border-bottom: 1px solid transparent;
+        }
+
+        details[open] summary {
+            border-bottom-color: var(--border);
+        }
+
+        .content {
+            padding: 0.9rem 1rem;
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+
+        .content code {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+            background: #ede9fe;
+            padding: 0.1rem 0.35rem;
+            border-radius: 4px;
+        }
+
+        .right-pane {
+            padding: 2rem;
+        }
+
+        .hero h2 {
+            margin: 0;
+            font-family: 'Libre Baskerville', serif;
+            font-size: 2rem;
+        }
+
+        .hero p {
+            margin: 0.75rem 0 1.75rem;
+            color: var(--muted);
+        }
+
+        .example {
+            display: grid;
+            grid-template-columns: 1.3fr 0.8fr;
+            gap: 1rem;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--panel);
+            padding: 1rem;
+        }
+
+        .card h3 {
+            margin: 0 0 0.7rem;
+            font-size: 0.95rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .console {
+            background: var(--terminal);
+            color: var(--ok);
+            font-family: 'JetBrains Mono', monospace;
+            border-radius: 8px;
+            border: 1px solid #1e293b;
+            padding: 0.75rem;
+            height: 360px;
+            overflow-y: auto;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .input-bar {
+            margin-top: 0.8rem;
+            display: flex;
+            gap: 0.6rem;
+        }
+
+        input {
+            flex: 1;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: white;
+            padding: 0.75rem 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .metric {
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 0;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--muted);
+        }
+
+        .metric-value {
+            font-family: 'Libre Baskerville', serif;
+            font-size: 2rem;
+            margin-top: 0.2rem;
+        }
+
+        .subtle {
+            margin-top: 0.75rem;
+            color: var(--muted);
+            font-size: 0.86rem;
+        }
+
+        @media (max-width: 980px) {
+            .layout { grid-template-columns: 1fr; }
+            .left-pane { border-right: none; border-bottom: 1px solid var(--border); }
+            .example { grid-template-columns: 1fr; }
+            .right-pane { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="left-pane">
+            <h1>Lab 03: Redis Pub/Sub</h1>
+            <p>Collapse the theory. Use the live example on the right to watch messages move across nodes.</p>
+
+            <details open>
+                <summary>What Problem Redis Solves</summary>
+                <div class="content">
+                    Each chat server only knows about its own WebSocket clients. Redis Pub/Sub bridges the gap so every node can relay the same message stream.
+                </div>
+            </details>
+
+            <details>
+                <summary>Message Flow</summary>
+                <div class="content">
+                    A node writes the message to PostgreSQL, publishes it to <code>chat_messages</code>, then every server broadcasts that payload to its local clients.
+                </div>
+            </details>
+
+            <details>
+                <summary>Why Two Nodes</summary>
+                <div class="content">
+                    Open both exposed nodes to see the same message arrive in both browsers, even when you send from only one of them.
+                </div>
+            </details>
+
+            <details>
+                <summary>What The Metrics Mean</summary>
+                <div class="content">
+                    <code>chat_active_connections</code> is local per node, while <code>chat_messages_total</code> and latency reflect the message path on that node.
+                </div>
+            </details>
+        </aside>
+
+        <main class="right-pane">
+            <section class="hero">
+                <h2>Live Example</h2>
+                <p>Open <code>http://localhost:8082</code> and <code>http://localhost:8083</code> in separate tabs, then send a message from one node and watch it appear on both.</p>
+            </section>
+
+            <section class="example">
+                <div class="card">
+                    <h3>Frame Stream</h3>
+                    <div id="console" class="console">
+                        [SYSTEM] Redis mesh UI initialized...
+                        [SYSTEM] Awaiting WebSocket handshake...
+                    </div>
+                    <div class="input-bar">
+                        <input type="text" id="msg-input" placeholder="Send message through the mesh">
+                        <button id="send-btn">Send</button>
+                    </div>
+                    <div class="subtle" id="endpoint">Connected endpoint: ---</div>
+                </div>
+
+                <div class="card">
+                    <h3>Metrics</h3>
+                    <div class="metric">
+                        <div class="metric-label">Active Connections</div>
+                        <div id="conn-count" class="metric-value">0</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Redis Pub/Sub Latency</div>
+                        <div id="latency" class="metric-value">0ms</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Node ID</div>
+                        <div id="node-id" class="metric-value">---</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const msgInput = document.getElementById('msg-input');
+        const sendBtn = document.getElementById('send-btn');
+        const connCountEl = document.getElementById('conn-count');
+        const latencyEl = document.getElementById('latency');
+        const nodeEl = document.getElementById('node-id');
+        const endpointEl = document.getElementById('endpoint');
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+        endpointEl.innerText = `Connected endpoint: ${location.host}`;
+
+        const log = (text, type = 'info') => {
+            const line = document.createElement('div');
+            const ts = new Date().toISOString().split('T')[1].split('Z')[0];
+            line.innerHTML = `<span style="color:#64748b">[${ts}]</span> [${type.toUpperCase()}] ${text}`;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        };
+
+        ws.onopen = () => {
+            log('TCP connection established.', 'sys');
+        };
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            const latency = Math.max(0, Date.now() - (msg.timestamp || Date.now()));
+
+            log(`RECV {user:"${msg.user_id}", node:"${msg.node_id}", bytes:${event.data.length}}`, 'data');
+
+            if (msg.connections !== undefined) {
+                connCountEl.innerText = msg.connections;
+            }
+            if (msg.node_id) {
+                nodeEl.innerText = msg.node_id;
+            }
+            latencyEl.innerText = `${latency}ms`;
+        };
+
+        ws.onclose = () => {
+            log('Socket closed.', 'warn');
+        };
+
+        const sendMessage = () => {
+            const value = msgInput.value.trim();
+            if (!value) {
+                return;
+            }
+            const payload = {
+                user_id: 'Researcher-01',
+                room_id: 'manuscript-lab',
+                content: value,
+                timestamp: Date.now()
+            };
+            log(`SEND "${value}"`, 'out');
+            ws.send(JSON.stringify(payload));
+            msgInput.value = '';
+        };
+
+        sendBtn.onclick = sendMessage;
+        msgInput.onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        };
+    </script>
+</body>
+</html>

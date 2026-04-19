@@ -1,0 +1,93 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: chat
+    volumes:
+      - ./services/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chat-net
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - chat-net
+
+  chat-server-1:
+    build:
+      context: ../../
+      dockerfile: labs/lab-03-redis-pubsub/services/chat-server/Dockerfile
+    environment:
+      DB_URL: postgres://user:pass@db:5432/chat?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      REDIS_CHANNEL: chat_messages
+      NODE_ID: redis-01
+      PORT: 8080
+    ports:
+      - "8082:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  chat-server-2:
+    build:
+      context: ../../
+      dockerfile: labs/lab-03-redis-pubsub/services/chat-server/Dockerfile
+    environment:
+      DB_URL: postgres://user:pass@db:5432/chat?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      REDIS_CHANNEL: chat_messages
+      NODE_ID: redis-02
+      PORT: 8080
+    ports:
+      - "8083:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9091:9090"
+    depends_on:
+      - chat-server-1
+      - chat-server-2
+    networks:
+      - chat-net
+
+networks:
+  chat-net:
+    driver: bridge

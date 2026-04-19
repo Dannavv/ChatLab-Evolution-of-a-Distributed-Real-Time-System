@@ -1,0 +1,129 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: chat
+    volumes:
+      - ./services/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 8
+    networks:
+      - chat-net
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - chat-net
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: miniopass
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - chat-net
+
+  minio-sync:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    volumes:
+      - archive-data:/archive
+    entrypoint: >
+      /bin/sh -c '
+      until mc alias set local http://minio:9000 minio miniopass; do sleep 2; done;
+      mc mb --ignore-existing local/chat-archive;
+      while true; do
+        mc mirror --overwrite /archive local/chat-archive;
+        sleep 5;
+      done
+      '
+    networks:
+      - chat-net
+
+  chat-api:
+    build:
+      context: ../../
+      dockerfile: labs/lab-05-cloud-native-chat-infrastructure/services/chat-api/Dockerfile
+    environment:
+      NODE_ID: cloud-api-01
+      PORT: 8080
+      REDIS_URL: redis://redis:6379
+      QUEUE_KEY: chat:ingest
+      EVENTS_CHANNEL: chat:events
+    ports:
+      - "8085:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  chat-worker:
+    build:
+      context: ../../
+      dockerfile: labs/lab-05-cloud-native-chat-infrastructure/services/chat-worker/Dockerfile
+    environment:
+      NODE_ID: cloud-worker-01
+      PORT: 8081
+      REDIS_URL: redis://redis:6379
+      DB_URL: postgres://user:pass@db:5432/chat?sslmode=disable
+      QUEUE_KEY: chat:ingest
+      EVENTS_CHANNEL: chat:events
+      ARCHIVE_DIR: /archive
+    volumes:
+      - archive-data:/archive
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chat-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9093:9090"
+    depends_on:
+      - chat-api
+      - chat-worker
+    networks:
+      - chat-net
+
+volumes:
+  archive-data:
+  minio-data:
+
+networks:
+  chat-net:
+    driver: bridge

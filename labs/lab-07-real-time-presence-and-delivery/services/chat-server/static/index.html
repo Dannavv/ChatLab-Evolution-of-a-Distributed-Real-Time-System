@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 07 - Real-Time Presence and Delivery</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a1118;
+      --panel: rgba(14, 25, 36, 0.92);
+      --panel-2: rgba(17, 33, 49, 0.85);
+      --border: rgba(125, 211, 252, 0.22);
+      --text: #e1f2ff;
+      --muted: #9ab8d1;
+      --accent: #38bdf8;
+      --accent-2: #34d399;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 8% 12%, rgba(56, 189, 248, 0.18), transparent 24%),
+        radial-gradient(circle at 86% 8%, rgba(52, 211, 153, 0.12), transparent 20%),
+        linear-gradient(150deg, #060b11 0%, #0a1118 44%, #0f1d2b 100%);
+    }
+
+    .layout {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 18px;
+    }
+
+    .header {
+      grid-column: 1 / -1;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--panel);
+      padding: 16px 18px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      letter-spacing: -0.04em;
+    }
+
+    .header p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    details { border-bottom: 1px solid rgba(125, 211, 252, 0.15); }
+    details:last-child { border-bottom: 0; }
+    summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      font-weight: 700;
+    }
+    summary::-webkit-details-marker { display: none; }
+    details[open] summary { color: var(--accent); }
+    .details-body { padding: 0 16px 14px; color: var(--muted); line-height: 1.7; }
+
+    .right { padding: 16px; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      border: 1px solid rgba(125, 211, 252, 0.2);
+      border-radius: 12px;
+      background: var(--panel-2);
+      padding: 9px 10px;
+    }
+
+    .stat label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+    }
+
+    .stat strong { font-size: 1.15rem; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    input, textarea, button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid rgba(125, 211, 252, 0.24);
+      background: rgba(7, 12, 19, 0.84);
+      color: var(--text);
+      font: inherit;
+      padding: 10px;
+    }
+
+    textarea {
+      min-height: 84px;
+      resize: vertical;
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), #0ea5e9);
+      font-weight: 700;
+    }
+
+    button.secondary {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .typing {
+      min-height: 22px;
+      color: var(--accent-2);
+      margin-bottom: 8px;
+      font-size: 0.92rem;
+    }
+
+    .lists {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .list {
+      border: 1px solid rgba(125, 211, 252, 0.16);
+      border-radius: 10px;
+      padding: 8px;
+      min-height: 80px;
+      background: rgba(8, 15, 24, 0.7);
+    }
+
+    .list h3 {
+      margin: 0 0 6px;
+      font-size: 0.88rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .list ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--text);
+      font-size: 0.92rem;
+    }
+
+    .log {
+      border: 1px solid rgba(125, 211, 252, 0.16);
+      border-radius: 12px;
+      min-height: 280px;
+      max-height: 420px;
+      overflow: auto;
+      padding: 10px;
+      display: grid;
+      gap: 7px;
+      background: rgba(6, 10, 17, 0.72);
+    }
+
+    .entry {
+      border: 1px solid rgba(125, 211, 252, 0.14);
+      border-radius: 10px;
+      padding: 8px;
+      background: rgba(18, 33, 49, 0.7);
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 1080px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 740px) {
+      .controls, .stats, .lists { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <section class="header">
+      <h1>Lab 07: Real-Time Presence and Delivery</h1>
+      <p>This lab introduces live presence, typing indicators, read receipts, and delivery events. Two nodes synchronize event streams through Redis to keep user state consistent across node boundaries.</p>
+    </section>
+
+    <section class="panel">
+      <details open>
+        <summary>What changed from Lab 06</summary>
+        <div class="details-body">Lab 06 focused on resilience controls. Lab 07 focuses on user-facing real-time semantics: who is online, who is typing, and whether messages were delivered and read.</div>
+      </details>
+      <details>
+        <summary>Event types in this lab</summary>
+        <div class="details-body">message, presence, typing, read, and delivery. Each event carries user, room, node, timestamp, and event identifiers so clients can render consistent state in real time.</div>
+      </details>
+      <details>
+        <summary>Cross-node consistency</summary>
+        <div class="details-body">Each node publishes events to Redis and subscribes to the same channel. This allows clients connected to different nodes to observe one shared room state.</div>
+      </details>
+      <details>
+        <summary>How to test it</summary>
+        <div class="details-body">Open this page on both node ports. Use different users in the same room. Start typing, send messages, and click mark read to verify the event fan-out and status updates.</div>
+      </details>
+    </section>
+
+    <section class="panel right">
+      <div class="stats">
+        <div class="stat"><label>Node</label><strong id="node">-</strong></div>
+        <div class="stat"><label>Connections</label><strong id="connections">0</strong></div>
+        <div class="stat"><label>Online</label><strong id="online-count">0</strong></div>
+        <div class="stat"><label>Delivered</label><strong id="delivered-count">0</strong></div>
+      </div>
+
+      <div class="controls">
+        <input id="user" value="ava" placeholder="User ID" />
+        <input id="room" value="general" placeholder="Room ID" />
+      </div>
+
+      <textarea id="message" placeholder="Type your message"></textarea>
+
+      <div class="actions">
+        <button class="primary" id="connect-send">Connect + Send</button>
+        <button class="secondary" id="typing">Typing Ping</button>
+        <button class="secondary" id="read">Mark Read</button>
+      </div>
+
+      <div class="typing" id="typing-state"></div>
+
+      <div class="lists">
+        <div class="list">
+          <h3>Online Users</h3>
+          <ul id="online-users"></ul>
+        </div>
+        <div class="list">
+          <h3>Typing Users</h3>
+          <ul id="typing-users"></ul>
+        </div>
+      </div>
+
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+
+  <script>
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+    const logEl = document.getElementById('log');
+    let connected = false;
+    let deliveredCount = 0;
+
+    function addLog(evt) {
+      const row = document.createElement('div');
+      row.className = 'entry';
+      row.innerHTML = `<div class="meta"><span>${evt.type || 'event'} · ${evt.user_id || 'system'}</span><span>${evt.node_id || '-'} · ${evt.room_id || '-'}</span></div><div>${evt.content || evt.status || '(no content)'}</div>`;
+      logEl.prepend(row);
+      while (logEl.children.length > 40) {
+        logEl.removeChild(logEl.lastChild);
+      }
+    }
+
+    function baseEvent(type) {
+      return {
+        type,
+        user_id: document.getElementById('user').value || 'ava',
+        room_id: document.getElementById('room').value || 'general',
+        timestamp: Date.now(),
+      };
+    }
+
+    function sendEvent(evt) {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      socket.send(JSON.stringify(evt));
+    }
+
+    function connectPresenceIfNeeded() {
+      if (connected) {
+        return;
+      }
+      sendEvent({ ...baseEvent('presence'), status: 'online' });
+      connected = true;
+    }
+
+    document.getElementById('connect-send').addEventListener('click', () => {
+      connectPresenceIfNeeded();
+      const content = document.getElementById('message').value.trim();
+      if (!content) return;
+      sendEvent({ ...baseEvent('message'), content });
+      document.getElementById('message').value = '';
+    });
+
+    document.getElementById('typing').addEventListener('click', () => {
+      connectPresenceIfNeeded();
+      sendEvent({ ...baseEvent('typing'), content: 'typing' });
+    });
+
+    document.getElementById('read').addEventListener('click', () => {
+      connectPresenceIfNeeded();
+      sendEvent({ ...baseEvent('read'), status: 'read' });
+    });
+
+    document.getElementById('message').addEventListener('input', () => {
+      connectPresenceIfNeeded();
+      sendEvent({ ...baseEvent('typing'), content: 'typing' });
+    });
+
+    socket.addEventListener('message', (event) => {
+      const evt = JSON.parse(event.data);
+      addLog(evt);
+
+      if (evt.type === 'delivery') {
+        deliveredCount += 1;
+        document.getElementById('delivered-count').textContent = String(deliveredCount);
+      }
+      if (evt.type === 'typing') {
+        document.getElementById('typing-state').textContent = `${evt.user_id} is typing...`;
+        setTimeout(() => {
+          if (document.getElementById('typing-state').textContent.includes(evt.user_id)) {
+            document.getElementById('typing-state').textContent = '';
+          }
+        }, 2200);
+      }
+    });
+
+    socket.addEventListener('open', () => {
+      addLog({ type: 'system', user_id: 'SYSTEM', content: 'WebSocket connected', node_id: 'client', room_id: 'local' });
+    });
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch('/status');
+        const data = await response.json();
+        document.getElementById('node').textContent = data.node_id;
+        document.getElementById('connections').textContent = String(data.active_connections);
+
+        const room = document.getElementById('room').value || 'general';
+        const roomState = (data.rooms && data.rooms[room]) || { online: 0, users: [], typing: [] };
+
+        document.getElementById('online-count').textContent = String(roomState.online || 0);
+
+        const onlineUsers = document.getElementById('online-users');
+        onlineUsers.innerHTML = '';
+        for (const user of roomState.users || []) {
+          const li = document.createElement('li');
+          li.textContent = user;
+          onlineUsers.appendChild(li);
+        }
+
+        const typingUsers = document.getElementById('typing-users');
+        typingUsers.innerHTML = '';
+        for (const user of roomState.typing || []) {
+          const li = document.createElement('li');
+          li.textContent = user;
+          typingUsers.appendChild(li);
+        }
+      } catch (_error) {
+      }
+    }
+
+    refreshStatus();
+    setInterval(refreshStatus, 1000);
+  </script>
+</body>
+</html>
