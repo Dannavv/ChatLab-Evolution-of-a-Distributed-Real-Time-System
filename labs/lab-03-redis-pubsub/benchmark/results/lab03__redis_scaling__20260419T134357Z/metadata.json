@@ -1,0 +1,28 @@
+{
+  "run_id": "lab03__redis_scaling__20260419T134357Z",
+  "lab": "lab-03-redis-pubsub",
+  "scenario": "redis_scaling",
+  "started_at_utc": "2026-04-19T13:43:57.652988Z",
+  "workload": {
+    "health_url": "http://localhost:8082/health",
+    "metrics_url": "http://localhost:8082/metrics",
+    "ws_url": "ws://localhost:8082/ws",
+    "scrape_interval_seconds": 1,
+    "scenarios": {
+      "redis_scaling": {
+        "description": "Benchmark distributed Redis Pub/Sub mesh",
+        "message_interval_ms": 1000,
+        "stages": [
+          {
+            "duration": "1m",
+            "target_vus": 100
+          },
+          {
+            "duration": "1m",
+            "target_vus": 300
+          }
+        ]
+      }
+    }
+  }
+}

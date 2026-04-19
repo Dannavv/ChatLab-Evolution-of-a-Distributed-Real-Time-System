@@ -6,8 +6,17 @@ metrics_url: http://localhost:8080/metrics
 health_url: http://localhost:8080/health
 warmup_seconds: 8
 scrape_interval_seconds: 1
+summary_interval_seconds: 5
+message_payload_bytes: 256
+room_id: benchmark-comparison
 results_dir: benchmark/results
 scenarios:
+  comparison_standard:
+    description: Fair cross-lab comparison scenario with fixed duration and payload size.
+    message_interval_ms: 1000
+    stages:
+      - duration: 1m
+        target_vus: 100
   baseline:
     description: Steady load to capture the monolith operating curve.
     message_interval_ms: 5000

@@ -17,12 +17,27 @@ plt.rcParams.update({
     "savefig.bbox": "tight",
 })
 
-def get_latest_run(lab_id):
+def get_latest_run(lab_id, preferred_scenarios=None):
     results_root = Path(__file__).resolve().parent.parent.parent / lab_id / 'benchmark' / 'results'
-    if not results_root.exists(): return None
+    if not results_root.exists():
+        return None
     runs = [d for d in results_root.iterdir() if d.is_dir() and (d / 'timeseries.csv').exists()]
-    if not runs: return None
-    return sorted(runs, key=os.path.getmtime)[-1]
+    if not runs:
+        return None
+    preferred_scenarios = preferred_scenarios or []
+    preferred_runs = []
+    for run in runs:
+        meta_path = run / 'metadata.json'
+        if not meta_path.exists():
+            continue
+        try:
+            meta = json.loads(meta_path.read_text(encoding='utf-8'))
+        except Exception:
+            continue
+        if meta.get('scenario') in preferred_scenarios:
+            preferred_runs.append(run)
+    pool = preferred_runs or runs
+    return sorted(pool, key=os.path.getmtime)[-1]
 
 def process_df(path):
     df = pd.read_csv(path)
@@ -34,8 +49,9 @@ def process_df(path):
     return df
 
 def generate_comparison():
-    lab01_run = get_latest_run('lab-01-monolith-baseline')
-    lab02_run = get_latest_run('lab-02-persistence-layer')
+    preferred = ['comparison_standard']
+    lab01_run = get_latest_run('lab-01-monolith-baseline', preferred)
+    lab02_run = get_latest_run('lab-02-persistence-layer', preferred)
     
     if not lab01_run or not lab02_run:
         print("Error: Missing benchmark data for Lab 01 or Lab 02.")

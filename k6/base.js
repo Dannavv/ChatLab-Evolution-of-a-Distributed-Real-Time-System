@@ -1,8 +1,10 @@
 import ws from 'k6/ws';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 
 const messagesSent = new Counter('chat_messages_sent');
+const messagesReceived = new Counter('chat_messages_received');
+const duplicateMessages = new Counter('chat_duplicate_messages');
 const messageLatency = new Trend('chat_message_latency_ms');
 
 function parseIntEnv(name, fallback) {
@@ -38,6 +40,35 @@ function pickEndpoint(urls) {
     return urls[index];
 }
 
+function buildMessagePayload(messageId, roomId, targetBytes) {
+    const payload = {
+        user_id: `benchmark-user-${String(__VU).padStart(4, '0')}`,
+        room_id: roomId,
+        content: '',
+        trace_id: messageId,
+        message_id: messageId,
+        client_send_ts: Date.now(),
+    };
+
+    if (!targetBytes || targetBytes <= 0) {
+        payload.content = `Load check from VU ${__VU}`;
+        return payload;
+    }
+
+    payload.content = 'x';
+    let encoded = JSON.stringify(payload);
+    if (encoded.length < targetBytes) {
+        payload.content = 'x'.repeat(targetBytes - encoded.length + 1);
+        encoded = JSON.stringify(payload);
+    }
+    while (encoded.length > targetBytes && payload.content.length > 1) {
+        payload.content = payload.content.slice(0, -1);
+        encoded = JSON.stringify(payload);
+    }
+
+    return payload;
+}
+
 export const options = {
     thresholds: {
         chat_message_latency_ms: ['p(95)<2000'],
@@ -61,6 +92,9 @@ if (envStages) {
 
 export default function () {
     const messageIntervalMs = parseIntEnv('MESSAGE_INTERVAL_MS', 5000);
+    const targetMessageBytes = parseIntEnv('TARGET_MESSAGE_BYTES', 0);
+    const roomId = __ENV.ROOM_ID || 'benchmark-room';
+    const logSampleMessages = __ENV.LOG_SAMPLE_MESSAGES === 'true' && __VU === 1;
     const urlString = __ENV.WS_URLS || __ENV.WS_URL || 'ws://localhost:8080/ws';
     const urls = urlString
         .split(',')
@@ -69,23 +103,58 @@ export default function () {
     const url = pickEndpoint(urls);
     
     const res = ws.connect(url, {}, function (socket) {
+        const pendingMessages = {};
+        const seenMessageIds = {};
+        let sequence = 0;
+        let loggedSends = 0;
+        let loggedReceives = 0;
+
         socket.on('open', () => {
             socket.setInterval(() => {
-                const msg = JSON.stringify({
-                    user_id: `user-${__VU}`,
-                    room_id: 'robust-test',
-                    content: `Load check from VU ${__VU}`
-                });
-                socket.send(msg);
+                sequence += 1;
+                const messageId = `vu-${__VU}-msg-${sequence}-${Date.now()}`;
+                const payload = buildMessagePayload(messageId, roomId, targetMessageBytes);
+                pendingMessages[messageId] = payload.client_send_ts;
+                socket.send(JSON.stringify(payload));
                 messagesSent.add(1);
+
+                if (logSampleMessages && loggedSends < 5) {
+                    console.log(`[send] message_id=${messageId} client_send_ts=${payload.client_send_ts}`);
+                    loggedSends += 1;
+                }
             }, messageIntervalMs);
         });
 
         socket.on('message', (data) => {
             const msg = JSON.parse(data);
-            if (msg.timestamp) {
-                const latency = Date.now() - msg.timestamp;
-                messageLatency.add(latency);
+            if (!msg.message_id || !(msg.message_id in pendingMessages)) {
+                return;
+            }
+
+            const receiveTs = Date.now();
+            if (seenMessageIds[msg.message_id]) {
+                duplicateMessages.add(1);
+                if (logSampleMessages) {
+                    console.log(`[dup] message_id=${msg.message_id} client_receive_ts=${receiveTs}`);
+                }
+                return;
+            }
+
+            seenMessageIds[msg.message_id] = true;
+            const latency = receiveTs - pendingMessages[msg.message_id];
+            delete pendingMessages[msg.message_id];
+
+            messageLatency.add(latency);
+            messagesReceived.add(1);
+
+            if (logSampleMessages && loggedReceives < 5) {
+                console.log(
+                    `[recv] message_id=${msg.message_id} client_receive_ts=${receiveTs} `
+                    + `server_receive_ts=${msg.server_receive_ts || 'n/a'} `
+                    + `server_broadcast_ts=${msg.server_broadcast_ts || msg.timestamp || 'n/a'} `
+                    + `e2e_latency_ms=${latency}`
+                );
+                loggedReceives += 1;
             }
         });
 

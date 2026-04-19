@@ -3,8 +3,18 @@
 # Lab 02: The Persistence Layer
 ## *Durable State, SQL Overhead, and the Persistence Tax*
 
+**Purpose:** add durable storage to the chat path so messages can survive process restarts and support a history API.  
+**Hypothesis:** persistence will improve correctness and usefulness, but it will increase end-to-end latency and expose a new bottleneck around database writes.
+
 ### 🎯 Objective
 This lab upgrades the monolith from volatile in-memory messaging to database-backed message storage. The goal is to measure what changes when we add PostgreSQL, quantify the durability overhead, and make the performance-versus-durability trade-off concrete with real benchmark data.
+
+### 🔁 What Changed From Previous Lab
+- Lab 01 kept all message state in memory; Lab 02 writes messages into PostgreSQL.
+- Lab 01 had no history endpoint; Lab 02 adds `/history` to read the latest 50 messages by room.
+- Lab 01 measured only application-side message behavior; Lab 02 also measures DB write time separately through `chat_db_query_duration_ms`.
+- Lab 01 lost everything on restart; Lab 02 can recover persisted rows after the app process comes back.
+- Lab 01 only had an in-memory hot path; Lab 02 now has both an application hot path and a storage path, which is why performance changes.
 
 ### 🧩 Problem Statement
 Lab 01 is fast, but every restart wipes out all chat history. Lab 02 solves that limitation by introducing a persistence layer so messages can outlive the server process, while also exposing the cost of that decision in latency, throughput, and operational complexity.
@@ -44,7 +54,7 @@ Client
 5. A goroutine attempts to `INSERT` the message into PostgreSQL, retrying up to 3 times with 100 ms backoff.
 6. In parallel, the server immediately broadcasts the message to connected clients.
 7. Prometheus captures end-to-end message latency and DB query duration.
-8. Clients can later fetch durable history through `/history?room_id=...`, which reads the latest 50 messages for that room.
+8. The sender receives its echoed `message_id`, records `client_receive_ts`, and k6 computes true end-to-end latency as `client_receive_ts - client_send_ts`; clients can later fetch durable history through `/history?room_id=...`.
 
 ### 🔁 What Persistence Changes vs Lab 01
 - Messages are now stored in a `messages` table instead of existing only in RAM.
@@ -74,9 +84,10 @@ We introduce **PostgreSQL** to the architecture. Every incoming message is now p
 - Comparison helper: `labs/lab-02-persistence-layer/benchmark/compare.py`
 - Measurement path: k6 drives WebSocket traffic, the sampler collects Prometheus counters and histograms every 1 second, and results are written into `timeseries.csv`.
 - Scenarios used in the checked-in artifacts:
+  - `comparison_standard`: 100 VUs for 1 minute, 1000 ms message interval
   - `persistence_standard`: 100 VUs for 1 minute, 1000 ms message interval
   - `persistence_stress`: 500 VUs for 2 minutes, 500 ms message interval
-- Payload shape: JSON WebSocket message with `user_id`, `room_id`, and `content`; representative payload size is about 77 bytes before WebSocket framing.
+- Payload shape: the comparison harness uses fixed-size JSON messages with `message_id`, `trace_id`, `client_send_ts`, `user_id`, `room_id`, and padded `content`; `comparison_standard` targets 256 bytes before WebSocket framing in both labs.
 - Test environment recorded by the harness: local Docker Compose on Linux, 1-second scrape interval.
 - Hardware note: exact CPU and RAM were not captured by the harness, so absolute values should be treated as host-dependent.
 
@@ -87,6 +98,13 @@ We introduce **PostgreSQL** to the architecture. Every incoming message is now p
 - **Active VUs**: Expresses concurrency.
 - **Peak memory**: Captures process memory footprint under load.
 - **Dropped messages / DB errors**: Shows reliability or persistence issues.
+- **Error rate**: Percentage of dropped messages and DB failures relative to processed messages.
+
+### 🧪 Expected Results Before Running
+- `comparison_standard` should produce higher p50/p90/p99 latency than Lab 01 because the durable path adds SQL work.
+- DB write p50/p90/p99 should stay below total end-to-end latency, which helps separate storage cost from the rest of the request path.
+- The sanity check should show `received` close to `sent` for sender echoes, with duplicates staying near zero.
+- Under the `persistence_stress` scenario, tail latency should increase much faster than median latency because queueing and coordination dominate.
 
 ### 📈 Actual Benchmark Results
 The numbers below are taken from the checked-in runs `lab02__persistence_standard__20260419T110451Z` and `lab02__persistence_stress__20260419T112350Z`. Percentiles are computed from the sampled latency series in `timeseries.csv`.
@@ -117,10 +135,13 @@ The read path uses an index on `room_id` and returns the latest 50 messages orde
 *Figure 2: Unified view of Latency, Load, Throughput, and Resource Utilization.*
 
 #### 🧐 Analysis:
-1. **The Persistence Tax**: Notice that the median latency has shifted from sub-1ms (Lab 01) to **~15ms**. This is the cost of durability.
+1. **The Persistence Tax**: In the checked-in standard run, end-to-end latency lands at **p50 6.39 ms / p90 7.75 ms / p99 9.25 ms**. That shift above Lab 01 is the durability cost.
 2. **The Scaling Profile**: 
    ![Latency Scaling](assets/benchmarks/modern_latency_scaling.png)
    *Figure 3: Median latency response isolating the impact of SQL writes on system speed.*
+
+### 🧾 Interpretation
+Performance changes here for a concrete reason, not a mysterious one. Each message now creates extra work: the server stamps metadata, schedules a database write, waits for SQL capacity to be available, and still has to serialize and broadcast to connected clients. Even when the write runs asynchronously, database pressure shows up in the tail because the application and storage paths now contend for the same single-node resources.
 
 ---
 
@@ -136,6 +157,8 @@ The read path uses an index on `room_id` and returns the latest 50 messages orde
 ### 🔁 Throughput vs Latency
 ![Lab 01 vs Lab 02 Throughput-Latency Overlay](assets/benchmarks/lab_comparison_overlay.png)
 *Figure 5: This overlay makes the trade-off explicit. Lab 01 sits lower on the latency curve, while Lab 02 pays extra latency to gain durable storage and a history read path.*
+
+Use this combined graph as the primary Lab 01 vs Lab 02 comparison view. The separate per-lab plots are still useful for diagnosis, but this overlay is the clearest answer to "why did performance change?"
 
 ### ⏱️ Time-Series Stability View
 ![Run Audit](assets/benchmarks/run_audit.png)
@@ -187,6 +210,15 @@ The table below compares the checked-in Lab 01 baseline run against the Lab 02 s
 
 ---
 
+### ▶️ Benchmark Command
+```bash
+python3 labs/lab-02-persistence-layer/benchmark/run.py --scenario comparison_standard
+```
+
+This comparable scenario uses the same payload target, 1-minute duration, and 100-VU shape as Lab 01. The benchmark now prints throughput every 5 seconds, end-to-end latency percentiles, DB write p50/p90/p99, a latency histogram, and a sanity check with sent vs received counts plus duplicate detection by `message_id`.
+
+---
+
 ### 🚀 Commands
 **Start the Lab:**
 ```bash
@@ -212,6 +244,11 @@ python3 labs/lab-02-persistence-layer/benchmark/plot.py
   - `run.py`: The automated benchmark orchestrator.
   - `plot.py`: The GitHub-Modern visualization engine.
 - `assets/benchmarks/`: Permanent storage for persistence analytics.
+
+---
+
+### ⏭️ Next Lab Enablement
+Lab 02 proves that durability can be added, but also shows the cost of keeping all coordination on one node. That sets up the next lab: move beyond a single durable monolith and start separating real-time fan-out from storage concerns.
 
 ---
 [Next Lab: Lab 03 (Redis Pub/Sub) ➡️](../lab-03-redis-pubsub/README.md)

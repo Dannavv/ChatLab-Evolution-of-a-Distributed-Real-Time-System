@@ -3,8 +3,14 @@
 # Lab 01: The Monolith Baseline
 ## *Pure Real-Time (Low Latency, Zero Durability)*
 
+**Purpose:** establish the fastest single-node baseline by keeping all active state and broadcasts inside one process.  
+**Hypothesis:** in-memory chat will deliver the best latency floor, but tail latency will rise sharply once one mutex-guarded node absorbs enough concurrent traffic.
+
 ### 🎯 Objective
 This lab establishes the baseline behavior of the chat system when everything happens inside one Go process and all state lives in memory. The goal is to measure the best-case latency profile of a single-node monolith, then make its architectural limits visible before we introduce durability in later labs.
+
+### 🔁 What Changed From Previous Lab
+There is no earlier implementation lab before Lab 01, so this is the starting point for the series. Concretely, this lab introduces the first runnable chat server, the in-memory connection registry, WebSocket broadcast flow, Prometheus metrics, and a benchmark harness that will act as the control group for every later lab.
 
 ### 🧩 Problem Statement
 The fastest possible version of the system is not automatically the most useful one. Lab 01 solves the "what is our starting point?" problem by intentionally using a minimal architecture so we can observe the raw benefits of in-memory state and the hard limitations that come with volatile storage and a single shared lock.
@@ -42,7 +48,7 @@ Client
 4. The server unmarshals the message, stamps `timestamp` and `node_id`, and enters the `broadcast()` path.
 5. `broadcast()` acquires the global mutex, serializes the payload once, and writes it to every connected client.
 6. Prometheus counters and latency histograms are updated.
-7. Connected clients receive the broadcast and k6 records observed message latency from the embedded server timestamp.
+7. The sender receives its echoed `message_id`, records `client_receive_ts`, and k6 computes true end-to-end latency as `client_receive_ts - client_send_ts`.
 
 ### 🔬 The Hypothesis
 > "A single-process, in-memory architecture will provide the absolute minimum latency floor (sub-1ms), but will be fundamentally non-durable and limited by single-node lock contention."
@@ -61,10 +67,11 @@ In this baseline, user connections and room state are stored entirely in the ser
 ---
 
 ### 🧪 Benchmarking Methodology
-- Driver: `labs/lab-01-monolith-baseline/k6/lab01.js`
+- Driver: `k6/base.js`
 - Orchestrator: `labs/lab-01-monolith-baseline/benchmark/run.py`
 - Measurement path: k6 sends WebSocket messages, the Go server exposes Prometheus metrics, and the sampler writes `timeseries.csv` every 1 second.
 - Scenario used for the baseline numbers below: `baseline`
+- Comparable scenario for Lab 01 vs Lab 02: `comparison_standard`
 - Warmup: 8 seconds
 - Load shape:
   - 30s ramp to 50 VUs
@@ -72,7 +79,7 @@ In this baseline, user connections and room state are stored entirely in the ser
   - 60s at 300 VUs
   - 30s ramp down to 0 VUs
 - Message pacing: one message every 5000 ms per VU
-- Payload shape: JSON WebSocket message with `user_id`, `room_id`, `content`, and `trace_id`; representative payload size is about 131 bytes before WebSocket framing.
+- Payload shape: the comparison harness uses fixed-size JSON messages with `message_id`, `trace_id`, `client_send_ts`, `user_id`, `room_id`, and padded `content`; `comparison_standard` targets 256 bytes before WebSocket framing in both labs.
 - Test environment recorded by the harness: Linux host, Python `3.13.12`, local Docker Compose deployment, 1-second scrape interval.
 - Hardware note: exact CPU and RAM were not captured by the harness, so results should be treated as workstation-specific rather than universal.
 
@@ -83,6 +90,12 @@ In this baseline, user connections and room state are stored entirely in the ser
 - **Active VUs**: Describes applied concurrency.
 - **Memory usage**: Shows the cost of keeping all state in-process.
 - **Dropped messages / errors**: Highlights reliability loss or silent degradation.
+- **Error rate**: Percentage of dropped or failed messages relative to processed messages; lower is better.
+
+### 🧪 Expected Results Before Running
+- `comparison_standard` should show the lowest end-to-end p50 latency in the series because there is no database round-trip.
+- p90 and p99 should climb faster than p50 as concurrency rises, because one broadcast lock becomes the contention point.
+- `sent` and `received` should stay close in the sanity check, and duplicate count should remain near zero.
 
 ### 📈 Actual Benchmark Results
 The baseline results below come from `lab01__baseline__20260419T101123Z`. Percentiles are computed from the sampled latency series in `timeseries.csv`.
@@ -110,6 +123,9 @@ The baseline results below come from `lab01__baseline__20260419T101123Z`. Percen
 #### 🧐 Reading the Signal:
 1.  **The Sub-ms Floor**: At low concurrency (<50 VUs), latency is effectively zero. This is the "Speed of RAM."
 2.  **The Mutex Cliff**: As load crosses 100 VUs, latency spikes exponentially. This is not a CPU bottleneck—it is **Lock Contention**. Too many goroutines are fighting for the same `sync.RWMutex`, leading to scheduling delays.
+
+### 🧾 Interpretation
+The important result here is not just that Lab 01 is fast. It is fast for a very specific reason: there is no external storage hop and no cross-node coordination. The moment concurrency rises, the same design choice that kept the happy path simple starts to hurt tail latency because every broadcast waits behind the same shared lock.
 
 ---
 
@@ -149,6 +165,15 @@ Use Figure 2 as the primary stability view for Lab 01: it shows latency, load, t
 
 ---
 
+### ▶️ Benchmark Command
+```bash
+python3 labs/lab-01-monolith-baseline/benchmark/run.py --scenario comparison_standard
+```
+
+This comparable scenario uses the same target payload size, 1-minute duration, and 100-VU shape as Lab 02. The benchmark now logs unique `message_id` values, client send and receive timestamps for true end-to-end latency, throughput every 5 seconds, a text latency histogram, and a final sanity check showing sent vs received messages.
+
+---
+
 ### 🚀 Commands
 ```bash
 # Start the lab
@@ -158,6 +183,11 @@ docker-compose up --build -d
 # Run the benchmark suite
 python3 labs/lab-01-monolith-baseline/benchmark/run.py
 ```
+
+---
+
+### ⏭️ Next Lab Enablement
+This baseline gives us a clean control group. In Lab 02 we can add persistence and measure exactly how much latency, throughput, and complexity we trade away to stop losing messages on restart.
 
 ---
 [Next Lab: Lab 02 (Persistence Layer) ➡️](../lab-02-persistence-layer/README.md)

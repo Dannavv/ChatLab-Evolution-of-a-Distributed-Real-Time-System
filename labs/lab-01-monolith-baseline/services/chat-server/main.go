@@ -74,9 +74,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		msg.Timestamp = time.Now().UnixMilli()
-		msg.NodeID = nodeID
-
+		enrichMessage(&msg)
 		broadcast(msg)
 	}
 }
@@ -88,11 +86,23 @@ func handleSendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg.Timestamp = time.Now().UnixMilli()
-	msg.NodeID = nodeID
-
+	enrichMessage(&msg)
 	broadcast(msg)
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func enrichMessage(msg *protocol.Message) {
+	now := time.Now().UnixMilli()
+	if msg.MessageID == "" {
+		if msg.TraceID != "" {
+			msg.MessageID = msg.TraceID
+		} else {
+			msg.MessageID = fmt.Sprintf("%s-%d", nodeID, now)
+		}
+	}
+	msg.ServerReceiveTimestamp = now
+	msg.Timestamp = now
+	msg.NodeID = nodeID
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +120,8 @@ func broadcast(msg protocol.Message) {
 	defer clientsMutex.Unlock()
 
 	msg.Connections = len(clients)
+	msg.ServerBroadcastTimestamp = time.Now().UnixMilli()
+	msg.Timestamp = msg.ServerBroadcastTimestamp
 	data, _ := json.Marshal(msg)
 
 	for client := range clients {
@@ -131,5 +143,6 @@ func broadcastSystem(content string) {
 		Timestamp: time.Now().UnixMilli(),
 		NodeID:    nodeID,
 	}
+	enrichMessage(&msg)
 	broadcast(msg)
 }

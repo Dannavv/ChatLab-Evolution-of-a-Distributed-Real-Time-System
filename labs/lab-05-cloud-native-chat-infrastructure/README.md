@@ -3,6 +3,18 @@
 # Lab 05: Cloud-Native Chat Infrastructure
 ## *Decoupled Pipelines and Object Storage*
 
+**Purpose:** decouple the ingest path from the processing path so the API can stay fast while background workers handle heavier storage work.  
+**Hypothesis:** pushing work into Redis and letting workers handle slower storage tasks will keep ingest latency low even when downstream processing is expensive.
+
+### 🎯 Objective
+This lab separates "accepting a message" from "fully processing and archiving a message." The goal is to make the critical path extremely thin while moving durable and archival work behind a queue-driven worker.
+
+### 🔁 What Changed From Previous Lab
+- Lab 04 used internal workers inside one node; Lab 05 splits ingest and processing into separate services.
+- The API now writes quickly into Redis while a worker handles heavier tasks later.
+- MinIO is introduced as an object-storage layer for archival concerns.
+- The system becomes more cloud-native because ingestion and processing can scale independently.
+
 ### 🔬 The Hypothesis
 > "By decoupling the ingest path (API) from the processing path (Worker) using a Redis Queue, we can achieve high 'Burst Tolerance.' The system will accept messages at wire-speed and process them asynchronously, allowing us to leverage scalable Object Storage (MinIO) for long-term archiving without affecting real-time latency."
 
@@ -16,6 +28,24 @@ In Lab 04, if a worker was slow, the whole server lagged.
 ### 🏗️ Architecture
 ![Lab 05 Architecture](assets/benchmarks/architecture.png)
 *Figure 1: The Cloud-Native Pipeline. API Gateway -> Redis Stream -> Background Worker -> Object Storage.*
+
+### 🏛️ System Architecture (Structured View)
+```text
+Client
+  -> API node
+     -> enqueue to Redis
+  -> worker
+     -> consume queue
+     -> write durable state
+     -> archive to object storage
+```
+
+### 🔄 Request Flow
+1. The client sends a message to the API node.
+2. The API quickly enqueues the work into Redis.
+3. The API responds without waiting for the full archival path to complete.
+4. A worker drains the queue asynchronously.
+5. The worker performs durable writes and object-storage archival in the background.
 
 ---
 
@@ -38,11 +68,30 @@ In Lab 04, if a worker was slow, the whole server lagged.
 #### 🧐 Reading the Signal:
 - **Queue Buffering**: Unlike previous labs where "Deficit" meant "Dropped Data," in Lab 05, a deficit often just means the **Worker is behind**. The messages are safe in the Redis Queue and will be processed once the load subsides. This is **Durability by Design**.
 
+### 🧪 Benchmark Notes
+- Benchmark README: [benchmark/README.md](./benchmark/README.md)
+- Main benchmark scenario: `cloud_native_ingest`
+- Direct run command:
+```bash
+python3 labs/lab-05-cloud-native-chat-infrastructure/benchmark/run.py --scenario cloud_native_ingest
+```
+
+### 🧾 Interpretation
+Performance changes because the synchronous API path is no longer responsible for every expensive side effect. The benchmark mainly shows ingest behavior, so low API latency here should be read together with queue depth and worker lag, not as proof that all downstream work is free.
+
+### 🚧 Limitations
+- A fast API can hide a slow worker for a while, but backlog still accumulates.
+- Redis becomes both a buffer and a dependency.
+- Eventual completion matters now as much as immediate response time.
+
 ---
 
 ### 🔬 Key Lessons
 - **Critical Path Management**: Never do I/O (Disk/S3) in a WebSocket handler.
 - **Object Storage vs. Relational**: PostgreSQL handles the "Real-Time History," while MinIO handles the "Permanent Archive."
+
+### ✅ What This Enables For Next Lab
+Lab 05 decouples the path, but queued systems still fail badly if downstream components degrade without control. Lab 06 adds circuit breakers, retries, and dead-letter handling so the pipeline can fail more safely.
 
 ---
 

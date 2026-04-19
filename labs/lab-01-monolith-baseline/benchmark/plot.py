@@ -7,236 +7,124 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-# GitHub Modern Style Configuration
+# GitHub Modern Style Configuration (Retina Specification)
 plt.style.use('default')
 plt.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": ["Inter", "Helvetica", "Arial", "DejaVu Sans"],
     "font.size": 10,
-    "axes.labelsize": 10,
-    "axes.titlesize": 12,
-    "legend.fontsize": 9,
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
     "lines.linewidth": 3,
     "figure.dpi": 500,
-    "savefig.bbox": "tight",
-    "savefig.pad_inches": 0.2,
     "axes.grid": True,
     "grid.alpha": 0.3,
     "grid.linestyle": "--",
     "axes.edgecolor": "#d0d7de",
-    "axes.labelcolor": "#24292f",
-    "xtick.color": "#57606a",
-    "ytick.color": "#57606a",
+    "savefig.bbox": "tight",
+    "savefig.pad_inches": 0.2,
 })
 
 def _prepare_frame(csv_path):
-    df = pd.read_csv(csv_path)
-    if 'timestamp' in df.columns and 'timestamp_s' not in df.columns:
-        df = df.rename(columns={'timestamp': 'timestamp_s'})
-    
-    # Filter initial Docker noise
-    df = df[df['timestamp_s'] >= 3].copy()
-    
-    # Clean up latency (floor at 0.1ms for clean log rendering)
-    df.loc[df['latency_ms'] <= 0, 'latency_ms'] = 0.1
-    
-    # Cap extreme latency spikes (outliers) to keep linear graphs readable
-    q95 = df['latency_ms'].quantile(0.95)
-    if q95 > 0:
-        df['latency_ms'] = df['latency_ms'].clip(upper=q95 * 3)
-        
-    # Rolling averages for "Liquid" trendlines
-    df['latency_smooth'] = df['latency_ms'].rolling(window=8, min_periods=1, center=True).mean()
-    df['vus_smooth'] = df['vus'].rolling(window=4, min_periods=1).mean()
-    
-    return df
+    if not Path(csv_path).exists():
+        return None
+    try:
+        df = pd.read_csv(csv_path)
+        if 'timestamp_s' not in df.columns:
+            df = df.rename(columns={'timestamp': 'timestamp_s'})
+        df = df[df['timestamp_s'] >= 3].copy()
+        df['latency_smooth'] = df['latency_ms'].rolling(window=15, min_periods=1, center=True).mean()
+        if 'db_latency_ms' in df.columns:
+            df['db_latency_smooth'] = df['db_latency_ms'].rolling(window=15, min_periods=1, center=True).mean()
+        return df
+    except Exception:
+        return None
 
-def plot_latency_vs_vus(df, path):
-    """Modern GitHub-style scatter with smooth trendline."""
-    fig, ax = plt.subplots(figsize=(8, 5))
-    
-    # Raw samples (Subtle background)
-    ax.scatter(df['vus'], df['latency_ms'], color='#57606a', s=12, alpha=0.15, label='Raw latency')
-    
-    # Median Trend (GitHub Blue)
-    bins = np.linspace(df['vus'].min(), df['vus'].max(), 25)
-    df['vu_bin'] = pd.cut(df['vus'], bins=bins)
-    binned = df.groupby('vu_bin')['latency_ms'].median()
-    bin_centers = [b.mid for b in binned.index]
-    
-    ax.plot(bin_centers, binned.values, color='#0969da', marker='o', markersize=4, 
-            linewidth=2.5, label='Median performance')
-    
-    ax.set_xlabel('Virtual Users (Concurrency)')
-    ax.set_ylabel('Latency (ms)')
-    ax.set_title('Performance Scaling Profile', fontweight='bold', pad=15)
-    ax.legend(frameon=True, facecolor='white', framealpha=1)
-    
-    # Clean the border
-    for spine in ax.spines.values():
-        spine.set_color('#d0d7de')
-        
-    _save(fig, path)
-
-def plot_dropped_messages(df, path):
-    """Clean modern step-area chart for drops."""
+def plot_latency_scaling(df, path):
     fig, ax = plt.subplots(figsize=(8, 4))
-    
-    # Area fill (GitHub Red)
-    ax.fill_between(df['timestamp_s'], df['dropped_total'], step="post", color='#cf222e', alpha=0.08)
-    ax.step(df['timestamp_s'], df['dropped_total'], where='post', color='#cf222e', linewidth=2, label='Dropped messages')
-    
-    ax.set_xlabel('Timeline (seconds)')
-    ax.set_ylabel('Cumulative Drops')
-    ax.set_title('Reliability Decay', fontweight='bold', pad=15)
+    ax.plot(df['timestamp_s'], df['latency_ms'], color='#cf222e', alpha=0.05)
+    ax.plot(df['timestamp_s'], df['latency_smooth'], color='#cf222e', label='E2E Latency')
+    if 'db_latency_smooth' in df.columns:
+        ax.plot(df['timestamp_s'], df['db_latency_smooth'], color='#0969da', linestyle='--', label='SQL Latency')
+    ax.set_yscale('log')
+    ax.set_ylabel('ms')
+    ax.set_title('Performance Scaling Profile', fontweight='bold')
     ax.legend()
-    
-    for spine in ax.spines.values():
-        spine.set_color('#d0d7de')
-        
     _save(fig, path)
 
-def plot_overview_mesh(df, path, scenario):
-    """Unified multi-panel dashboard for READMEs."""
-    fig, axes = plt.subplots(2, 2, figsize=(12, 9))
-    
-    # 1. Latency (The "Pain" metric)
-    ax = axes[0,0]
-    ax.plot(df['timestamp_s'], df['latency_smooth'], color='#cf222e', linewidth=2)
-    ax.set_ylabel('Latency (ms)')
-    ax.set_title('Latency over Time', fontweight='bold')
-    
-    # 2. VUs (The "Load" metric)
-    ax = axes[0,1]
-    ax.fill_between(df['timestamp_s'], df['vus'], color='#0969da', alpha=0.1)
-    ax.plot(df['timestamp_s'], df['vus'], color='#0969da', linewidth=2)
-    ax.set_ylabel('Virtual Users')
-    ax.set_title('Traffic Profile', fontweight='bold')
-    
-    # 3. Throughput (The "Utility" metric)
-    ax = axes[1,0]
+def plot_reliability_loss(df, path):
+    fig, ax = plt.subplots(figsize=(8, 4))
+    # Heuristic for expected rate based on VUs
+    df['expected_rate'] = df['vus'] / 5.0
     msgs_diff = df['messages_total'].diff().fillna(0)
-    time_diff = df['timestamp_s'].diff().fillna(1)
-    throughput = (msgs_diff / time_diff).rolling(8).mean()
-    ax.plot(df['timestamp_s'], throughput, color='#1a7f37', linewidth=2)
-    ax.set_ylabel('Msgs/sec')
-    ax.set_title('System Throughput', fontweight='bold')
+    df['actual_rate'] = msgs_diff.rolling(window=30, min_periods=1).mean()
+    deficit = (df['expected_rate'] - df['actual_rate']).clip(lower=0)
+    ax.fill_between(df['timestamp_s'], deficit, color='#cf222e', alpha=0.1)
+    ax.plot(df['timestamp_s'], deficit, color='#cf222e')
+    ax.set_ylabel('Msgs/sec Lost')
+    ax.set_title('Throughput Deficit (Reliability Loss)', fontweight='bold')
+    _save(fig, path)
+
+def plot_quad_dashboard(df, path, scenario):
+    fig, axes = plt.subplots(2, 2, figsize=(12, 9))
+    axes[0,0].plot(df['timestamp_s'], df['latency_smooth'], color='#cf222e')
+    axes[0,0].set_yscale('log')
+    axes[0,0].set_title('Latency (ms)')
     
-    # 4. Memory (The "Cost" metric)
-    ax = axes[1,1]
-    ax.plot(df['timestamp_s'], df['memory_mb'], color='#8250df', linewidth=2)
-    ax.set_ylabel('Memory (MB)')
-    ax.set_title('Resource Utilization', fontweight='bold')
+    axes[0,1].fill_between(df['timestamp_s'], df['vus'], color='#0969da', alpha=0.1)
+    axes[0,1].plot(df['timestamp_s'], df['vus'], color='#0969da')
+    axes[0,1].set_title('Workload (VUs)')
     
-    for a in axes.flat:
-        a.set_xlabel('Seconds')
-        for spine in a.spines.values():
-            spine.set_color('#d0d7de')
+    if 'db_latency_smooth' in df.columns:
+        axes[1,0].plot(df['timestamp_s'], df['db_latency_smooth'], color='#0969da')
+    else:
+        axes[1,0].text(0.5, 0.5, 'N/A (Memory Only)', ha='center', va='center')
+    axes[1,0].set_title('SQL Overhead (ms)')
     
-    plt.suptitle(f'Benchmark Insights: {scenario.upper()}', fontsize=14, fontweight='bold', y=0.98)
+    axes[1,1].plot(df['timestamp_s'], df['memory_mb'], color='#8250df')
+    axes[1,1].set_title('Memory (MB)')
+    
+    plt.suptitle(f'Audit Dashboard: {scenario.upper()}', fontsize=14, fontweight='bold')
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     _save(fig, path)
 
 def _save(fig, path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, facecolor='white', edgecolor='none', transparent=False)
+    fig.savefig(path, facecolor='white', transparent=False)
     plt.close(fig)
 
 def generate_run_graphs(run_dir):
     run_dir = Path(run_dir)
-    csv_path = run_dir / 'timeseries.csv'
-    graphs_dir = run_dir / 'graphs'
+    df = _prepare_frame(run_dir / 'timeseries.csv')
+    if df is None: return
     
-    if not csv_path.exists():
-        return
-        
-    df = _prepare_frame(csv_path)
-    if df.empty:
-        return
-
+    graphs_dir = run_dir / 'graphs'
     scenario = run_dir.name.split('__')[1] if '__' in run_dir.name else run_dir.name
     
-    # Modern GitHub Suite
-    plot_latency_vs_vus(df, graphs_dir / 'modern_latency_scaling.png')
-    plot_dropped_messages(df, graphs_dir / 'modern_reliability_loss.png')
-    plot_overview_mesh(df, graphs_dir / 'modern_quad_dashboard.png', scenario)
+    plot_latency_scaling(df, graphs_dir / 'modern_latency_scaling.png')
+    plot_reliability_loss(df, graphs_dir / 'modern_reliability_loss.png')
+    plot_quad_dashboard(df, graphs_dir / 'modern_quad_dashboard.png', scenario)
 
 def generate_suite_graphs(results_root):
-    """Generate comparison graphs across all scenarios in the suite."""
     results_root = Path(results_root)
-    suite_dir = results_root / 'suite'
-    suite_dir.mkdir(parents=True, exist_ok=True)
+    # Find latest lab-specific run
+    runs = sorted([d for d in results_root.iterdir() if d.is_dir()], key=lambda x: x.stat().st_mtime, reverse=True)
+    if not runs: return
     
-    scenario_runs = {}
-    for run_dir in results_root.iterdir():
-        if not run_dir.is_dir() or run_dir.name == 'suite':
-            continue
-        meta_path = run_dir / 'metadata.json'
-        if not meta_path.exists():
-            continue
-        try:
-            with open(meta_path) as f:
-                meta = json.load(f)
-            scenario = meta.get('scenario', 'unknown')
-            started_at = meta.get('started_at_utc', '')
-            
-            # Keep the latest run for each scenario
-            if scenario not in scenario_runs or started_at > scenario_runs[scenario]['started_at']:
-                csv_path = run_dir / 'timeseries.csv'
-                if csv_path.exists():
-                    scenario_runs[scenario] = {'started_at': started_at, 'csv': csv_path}
-        except Exception:
-            continue
+    latest_run = runs[0]
+    df = _prepare_frame(latest_run / 'timeseries.csv')
+    if df is None: return
 
-    if not scenario_runs:
-        return
+    assets_dir = results_root.parent.parent / 'assets' / 'benchmarks'
+    scenario = latest_run.name.split('__')[1] if '__' in latest_run.name else latest_run.name
 
-    # Prepare data for plotting comparisons
-    frames = {scen: _prepare_frame(data['csv']) for scen, data in scenario_runs.items()}
-    
-    # 1. Latency Comparison
-    fig, ax = plt.subplots(figsize=(8, 5))
-    for scen, df in frames.items():
-        ax.plot(df['vus'], df['latency_smooth'], label=scen, linewidth=2)
-    ax.set_xlabel('Virtual Users (Concurrency)')
-    ax.set_ylabel('Latency (ms)')
-    ax.set_title('Lab 01 Suite: Latency Comparison', fontweight='bold', pad=15)
-    ax.legend(frameon=True, facecolor='white', framealpha=1)
-    for spine in ax.spines.values():
-        spine.set_color('#d0d7de')
-    _save(fig, suite_dir / 'suite_latency_comparison.png')
-
-    # 2. Throughput Comparison
-    fig, ax = plt.subplots(figsize=(8, 5))
-    for scen, df in frames.items():
-        msgs_diff = df['messages_total'].diff().fillna(0)
-        time_diff = df['timestamp_s'].diff().fillna(1)
-        throughput = (msgs_diff / time_diff).rolling(window=5, min_periods=1).mean()
-        ax.plot(df['vus'], throughput, label=scen, linewidth=2)
-    ax.set_xlabel('Virtual Users (Concurrency)')
-    ax.set_ylabel('Messages / Second')
-    ax.set_title('Lab 01 Suite: Throughput Comparison', fontweight='bold', pad=15)
-    ax.legend(frameon=True, facecolor='white', framealpha=1)
-    for spine in ax.spines.values():
-        spine.set_color('#d0d7de')
-    _save(fig, suite_dir / 'suite_throughput_comparison.png')
+    plot_latency_scaling(df, assets_dir / 'modern_latency_scaling.png')
+    plot_reliability_loss(df, assets_dir / 'modern_reliability_loss.png')
+    plot_quad_dashboard(df, assets_dir / 'modern_quad_dashboard.png', scenario)
+    print(f"✅ Suite assets exported to: {assets_dir}")
 
 if __name__ == "__main__":
-    import sys
-    
-    if len(sys.argv) > 1:
-        target = sys.argv[1]
-        print(f"🚀 Processing: {target}")
-        generate_run_graphs(target)
-    else:
-        script_dir = Path(__file__).resolve().parent
-        results_dir = script_dir / 'results'
-        if results_dir.exists():
-            runs = [d for d in results_dir.iterdir() if d.is_dir()]
-            for run in sorted(runs):
-                print(f"📊 Creating Modern Dashboard for: {run.name}")
+    results_dir = Path(__file__).resolve().parent / 'results'
+    if results_dir.exists():
+        for run in results_dir.iterdir():
+            if run.is_dir():
                 generate_run_graphs(run)
-        else:
-            print("❌ No results found.")
+        generate_suite_graphs(results_dir)

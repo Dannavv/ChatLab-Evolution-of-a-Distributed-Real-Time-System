@@ -151,7 +151,7 @@ func handleGetHistory(w http.ResponseWriter, r *http.Request) {
 		m.Timestamp = createdAt.UnixMilli()
 		msgs = append(msgs, m)
 	}
-	
+
 	duration := float64(time.Since(start).Milliseconds())
 	metrics.DBQueryDuration.Observe(duration) // Track Read Latency
 
@@ -161,8 +161,7 @@ func handleGetHistory(w http.ResponseWriter, r *http.Request) {
 
 func processMessage(msg protocol.Message) {
 	pStart := time.Now()
-	msg.Timestamp = time.Now().UnixMilli()
-	msg.NodeID = nodeID
+	enrichMessage(&msg)
 	metrics.ProcessingLatency.Observe(float64(time.Since(pStart).Seconds() * 1000))
 
 	// Persistence with Retry Logic (Write-Through Durability)
@@ -174,8 +173,9 @@ func processMessage(msg protocol.Message) {
 				"INSERT INTO messages (user_id, room_id, content, node_id) VALUES ($1, $2, $3, $4)",
 				m.UserID, m.RoomID, m.Content, m.NodeID,
 			)
-			metrics.DBQueryDuration.Observe(float64(time.Since(start).Milliseconds()))
-			
+			writeMs := float64(time.Since(start).Milliseconds())
+			metrics.DBQueryDuration.Observe(writeMs)
+
 			if err == nil {
 				success = true
 				break
@@ -192,14 +192,28 @@ func processMessage(msg protocol.Message) {
 	broadcast(msg)
 }
 
+func enrichMessage(msg *protocol.Message) {
+	now := time.Now().UnixMilli()
+	if msg.MessageID == "" {
+		if msg.TraceID != "" {
+			msg.MessageID = msg.TraceID
+		} else {
+			msg.MessageID = fmt.Sprintf("%s-%d", nodeID, now)
+		}
+	}
+	msg.ServerReceiveTimestamp = now
+	msg.Timestamp = now
+	msg.NodeID = nodeID
+}
+
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	dbStatus := "connected"
 	if err := db.Ping(); err != nil {
 		dbStatus = "disconnected"
 	}
 	resp := map[string]string{
-		"status": "healthy", 
-		"node_id": nodeID,
+		"status":   "healthy",
+		"node_id":  nodeID,
 		"database": dbStatus,
 	}
 	json.NewEncoder(w).Encode(resp)
@@ -211,6 +225,8 @@ func broadcast(msg protocol.Message) {
 	defer clientsMutex.Unlock()
 
 	msg.Connections = len(clients)
+	msg.ServerBroadcastTimestamp = time.Now().UnixMilli()
+	msg.Timestamp = msg.ServerBroadcastTimestamp
 	data, _ := json.Marshal(msg)
 
 	for client := range clients {
@@ -225,9 +241,9 @@ func broadcast(msg protocol.Message) {
 
 func broadcastSystem(content string) {
 	msg := protocol.Message{
-		UserID:    "SYSTEM",
-		RoomID:    "manuscript-lab",
-		Content:   content,
+		UserID:  "SYSTEM",
+		RoomID:  "manuscript-lab",
+		Content: content,
 	}
 	processMessage(msg)
 }
