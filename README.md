@@ -1,6 +1,8 @@
 # ChatLab
 ### *A Progressive Systems Engineering Curriculum*
 
+![ChatLab Cover](./assets/cover.png)
+
 ChatLab is a distributed-systems learning repo built around one evolving product: a real-time chat system. Each lab introduces one dominant systems problem, benchmarks the trade-off with the same comparable workload, and leaves behind a runnable architecture you can inspect locally.
 
 This repo is benchmarked on a developer machine. It is meant for fair architectural comparison and systems learning, not for unsupported claims about internet-scale production capacity.
