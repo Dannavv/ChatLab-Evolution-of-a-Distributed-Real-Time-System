@@ -42,6 +42,12 @@
       "synthesis": {
         "scaling_inflection": "Shared in-memory state is fast but non-durable and non-scalable.",
         "learning_goal": "Establish the baseline latency floor and the first comparable workload."
+      },
+      "architecture_summary": {
+        "complexity": "Low",
+        "scalability": "Single node only",
+        "failure_handling": "Best-effort only; restart loses state",
+        "real_world_mapping": "Prototype or hackathon MVP"
       }
     },
     {
@@ -86,6 +92,12 @@
       "synthesis": {
         "scaling_inflection": "Durability improves correctness but adds a measurable synchronous write tax.",
         "learning_goal": "Make consistency and storage cost explicit before scaling out."
+      },
+      "architecture_summary": {
+        "complexity": "Low-Medium",
+        "scalability": "Single writer with durable history",
+        "failure_handling": "DB retry and history recovery",
+        "real_world_mapping": "Small-team chat with durable history"
       }
     },
     {
@@ -130,6 +142,12 @@
       "synthesis": {
         "scaling_inflection": "Fan-out scales better than a mutex-bound monolith, but consistency becomes eventual.",
         "learning_goal": "Introduce the first distributed coordination trade-off."
+      },
+      "architecture_summary": {
+        "complexity": "Medium",
+        "scalability": "Horizontal websocket fan-out",
+        "failure_handling": "Broker disconnect and duplicate detection",
+        "real_world_mapping": "Early WhatsApp-style brokered fan-out"
       }
     },
     {
@@ -174,6 +192,12 @@
       "synthesis": {
         "scaling_inflection": "Queueing delays replace lock contention as the dominant bottleneck.",
         "learning_goal": "Formalize backpressure before moving into cloud-native decomposition."
+      },
+      "architecture_summary": {
+        "complexity": "Medium",
+        "scalability": "Higher burst tolerance on one node",
+        "failure_handling": "Local queue backpressure and drops",
+        "real_world_mapping": "Queue-protected monolith"
       }
     },
     {
@@ -218,6 +242,12 @@
       "synthesis": {
         "scaling_inflection": "Burst tolerance improves, but end-to-end semantics are now explicitly asynchronous.",
         "learning_goal": "Introduce cloud-native decomposition without losing benchmark comparability."
+      },
+      "architecture_summary": {
+        "complexity": "Medium-High",
+        "scalability": "Independent ingest and worker scaling",
+        "failure_handling": "Queue buffering and async recovery",
+        "real_world_mapping": "Netflix-style async ingest pipeline"
       }
     },
     {
@@ -263,6 +293,12 @@
       "synthesis": {
         "scaling_inflection": "Resilience protects throughput during failure, but it must be measured as an explicit trade-off.",
         "learning_goal": "Make failure handling part of the benchmark contract instead of an afterthought."
+      },
+      "architecture_summary": {
+        "complexity": "High",
+        "scalability": "Async pipeline with resilience controls",
+        "failure_handling": "Circuit breaker, retry, and DLQ",
+        "real_world_mapping": "Resilience-first service mesh pattern"
       }
     },
     {
@@ -307,6 +343,12 @@
       "synthesis": {
         "scaling_inflection": "Presence turns state freshness into a first-class scaling problem separate from message durability.",
         "learning_goal": "Separate soft-state coordination from durable messaging semantics."
+      },
+      "architecture_summary": {
+        "complexity": "High",
+        "scalability": "High websocket density with soft-state routing",
+        "failure_handling": "Presence drift and duplicate suppression",
+        "real_world_mapping": "WhatsApp or Discord-style realtime edge"
       }
     },
     {
@@ -351,6 +393,12 @@
       "synthesis": {
         "scaling_inflection": "Geography forces a formal consistency trade-off and a formal routing policy.",
         "learning_goal": "Make regional routing and eventual global convergence explicit."
+      },
+      "architecture_summary": {
+        "complexity": "High",
+        "scalability": "Regional scale with async cross-region replication",
+        "failure_handling": "Regional isolation and bridge backlog handling",
+        "real_world_mapping": "Multi-region messaging backbone"
       }
     },
     {
@@ -395,6 +443,12 @@
       "synthesis": {
         "scaling_inflection": "Confidentiality and integrity change the system budget even when topology stays similar.",
         "learning_goal": "Make cryptographic cost and failure semantics measurable."
+      },
+      "architecture_summary": {
+        "complexity": "High",
+        "scalability": "Security-aware distributed runtime",
+        "failure_handling": "Replay defense, decrypt failure, key rotation handling",
+        "real_world_mapping": "Signal-style secure messaging concerns"
       }
     },
     {
@@ -439,6 +493,51 @@
       "synthesis": {
         "scaling_inflection": "The architecture becomes operationally composable, but routing, tracing, and cost must be managed as first-class concerns.",
         "learning_goal": "End the curriculum with a measurable synthesis of decomposition trade-offs."
+      },
+      "architecture_summary": {
+        "complexity": "Very High",
+        "scalability": "Independent service scaling",
+        "failure_handling": "Per-service isolation and degraded dependency handling",
+        "real_world_mapping": "Large-team service-oriented platform"
+      }
+    },
+    {
+      "lab": "lab-11-production-grade-blueprint",
+      "scenario": "comparison_standard",
+      "status": "PENDING COMPARABLE RUN",
+      "run_dir": null,
+      "latency_ms": {},
+      "throughput_msgs_s": {},
+      "reliability": {},
+      "consistency_model": {
+        "target": "Service-coordinated durability with operational guardrails",
+        "notes": "The write path is durable and visible through one deployable control plane with metrics and dashboards."
+      },
+      "routing_strategy": {
+        "policy": "Gateway-mediated routing with service-specific downstream ownership and standardized control-plane tooling.",
+        "objective": "Consolidate the strongest ideas from the previous labs into one deployable local blueprint."
+      },
+      "failure_model": {
+        "focus": "Dependency degradation, rate-limit pressure, and service recovery under observability.",
+        "mechanisms": [
+          "X-Trace-Id propagation",
+          "Per-service health and status endpoints",
+          "Dashboard-backed recovery diagnosis"
+        ]
+      },
+      "cost_model": {
+        "dominant_axis": "Service-to-service hops, database writes, broker overhead, and operational complexity.",
+        "notes": "The blueprint is the most capable stack in the series and intentionally carries the highest platform cost."
+      },
+      "synthesis": {
+        "scaling_inflection": "The architecture becomes deployable as a repeatable blueprint, but platform discipline becomes mandatory.",
+        "learning_goal": "End the curriculum with a runnable reference stack that prioritizes clarity, observability, and operational readiness."
+      },
+      "architecture_summary": {
+        "complexity": "Very High",
+        "scalability": "Deployable capstone blueprint",
+        "failure_handling": "Resilience, observability, and control-plane aware",
+        "real_world_mapping": "Pragmatic production-ready team blueprint"
       }
     }
   ]

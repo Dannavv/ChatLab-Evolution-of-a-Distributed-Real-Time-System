@@ -11,6 +11,75 @@ RESULTS_DIR = ROOT_DIR / 'results'
 COMPARISON_MD = RESULTS_DIR / 'comparison.md'
 COMPARISON_JSON = RESULTS_DIR / 'comparison.json'
 
+ARCHITECTURE_OVERRIDES = {
+    'lab-01-monolith-baseline': {
+        'complexity': 'Low',
+        'scalability': 'Single node only',
+        'failure_handling': 'Best-effort only; restart loses state',
+        'real_world_mapping': 'Prototype or hackathon MVP',
+    },
+    'lab-02-persistence-layer': {
+        'complexity': 'Low-Medium',
+        'scalability': 'Single writer with durable history',
+        'failure_handling': 'DB retry and history recovery',
+        'real_world_mapping': 'Small-team chat with durable history',
+    },
+    'lab-03-redis-pubsub': {
+        'complexity': 'Medium',
+        'scalability': 'Horizontal websocket fan-out',
+        'failure_handling': 'Broker disconnect and duplicate detection',
+        'real_world_mapping': 'Early WhatsApp-style brokered fan-out',
+    },
+    'lab-04-scalable-monolith': {
+        'complexity': 'Medium',
+        'scalability': 'Higher burst tolerance on one node',
+        'failure_handling': 'Local queue backpressure and drops',
+        'real_world_mapping': 'Queue-protected monolith',
+    },
+    'lab-05-cloud-native-chat-infrastructure': {
+        'complexity': 'Medium-High',
+        'scalability': 'Independent ingest and worker scaling',
+        'failure_handling': 'Queue buffering and async recovery',
+        'real_world_mapping': 'Netflix-style async ingest pipeline',
+    },
+    'lab-06-chaos-and-resilience': {
+        'complexity': 'High',
+        'scalability': 'Async pipeline with resilience controls',
+        'failure_handling': 'Circuit breaker, retry, and DLQ',
+        'real_world_mapping': 'Resilience-first service mesh pattern',
+    },
+    'lab-07-real-time-presence-and-delivery': {
+        'complexity': 'High',
+        'scalability': 'High websocket density with soft-state routing',
+        'failure_handling': 'Presence drift and duplicate suppression',
+        'real_world_mapping': 'WhatsApp or Discord-style realtime edge',
+    },
+    'lab-08-global-multi-region': {
+        'complexity': 'High',
+        'scalability': 'Regional scale with async cross-region replication',
+        'failure_handling': 'Regional isolation and bridge backlog handling',
+        'real_world_mapping': 'Multi-region messaging backbone',
+    },
+    'lab-09-message-security': {
+        'complexity': 'High',
+        'scalability': 'Security-aware distributed runtime',
+        'failure_handling': 'Replay defense, decrypt failure, key rotation handling',
+        'real_world_mapping': 'Signal-style secure messaging concerns',
+    },
+    'lab-10-microservices-migration': {
+        'complexity': 'Very High',
+        'scalability': 'Independent service scaling',
+        'failure_handling': 'Per-service isolation and degraded dependency handling',
+        'real_world_mapping': 'Large-team service-oriented platform',
+    },
+    'lab-11-production-grade-blueprint': {
+        'complexity': 'Very High',
+        'scalability': 'Deployable capstone blueprint',
+        'failure_handling': 'Resilience, observability, and control-plane aware',
+        'real_world_mapping': 'Pragmatic production-ready team blueprint',
+    },
+}
+
 
 def _load_yaml(path):
     with Path(path).open('r', encoding='utf-8') as handle:
@@ -142,7 +211,27 @@ def build_comparison_artifacts():
             'failure_model': workload.get('failure_model', {}),
             'cost_model': workload.get('cost_model', {}),
             'synthesis': workload.get('synthesis', {}),
+            'architecture_summary': ARCHITECTURE_OVERRIDES.get(row['lab'], {}),
         })
+
+    md_lines.extend([
+        '',
+        '## Architecture Comparison',
+        '',
+        '| Lab | Complexity | Cost Axis | Scalability | Failure Handling | Real-World Mapping |',
+        '|---|---|---|---|---|---|',
+    ])
+
+    for row in rows:
+        workload = row['workload']
+        overrides = ARCHITECTURE_OVERRIDES.get(row['lab'], {})
+        md_lines.append(
+            f"| {row['lab']} | {overrides.get('complexity', '-')} | "
+            f"{workload.get('cost_model', {}).get('dominant_axis', '-')} | "
+            f"{overrides.get('scalability', '-')} | "
+            f"{overrides.get('failure_handling', workload.get('failure_model', {}).get('focus', '-'))} | "
+            f"{overrides.get('real_world_mapping', '-')} |"
+        )
 
     md_lines.extend([
         '',

@@ -1,6 +1,6 @@
 # ChatLab Final System Spec
 
-This document defines the capstone target architecture for the ChatLab curriculum. It is not a claim that the current repo is production-ready. It is the reference point that ties the ten labs into one coherent system-design story.
+This document defines the capstone target architecture for the ChatLab curriculum. It is not a claim that the current repo is production-ready. It is the reference point that ties the labs into one coherent system-design story and now maps directly to the Lab 11 production-grade blueprint.
 
 ## Goal
 

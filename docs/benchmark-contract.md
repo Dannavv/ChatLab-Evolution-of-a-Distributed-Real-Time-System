@@ -16,7 +16,16 @@ Every lab exposes `comparison_standard` with the same baseline assumptions:
 - 256-byte payload target
 - fixed room identifier for repeatability
 
-This is the scenario used by [results/comparison.md](../results/comparison.md).
+This is the scenario used by [results/comparison.md](../results/comparison.md) and by the standardized repo-level command:
+
+```bash
+python3 scripts/chatlab.py suite --scenario comparison_standard
+```
+
+This single comparable run is the standard benchmark suite for fair architecture comparison. The summary lens is always:
+- latency
+- throughput
+- error rate
 
 ## Global Metric Definitions
 
@@ -51,6 +60,7 @@ The goal is that each later lab makes message identity explicit even as componen
 - Lab 08: eventual cross-region convergence
 - Lab 09: eventual secure visibility
 - Lab 10: service-coordinated durability with eventual multi-service visibility
+- Lab 11: service-coordinated durability with operational guardrails
 
 ## Routing Progression
 
@@ -64,6 +74,7 @@ The goal is that each later lab makes message identity explicit even as componen
 - latency-based regional affinity with asynchronous bridging
 - secure ingress validation
 - gateway-mediated service routing
+- gateway-mediated service routing with standardized control-plane tooling
 
 ## Failure Progression
 
@@ -74,6 +85,8 @@ Each workload manifest includes an explicit `failure_model` with a focus and con
 Every lab is expected to expose:
 
 - Prometheus metrics
+- Docker Compose logs
+- Grafana dashboard support through the shared provisioning bundle
 - benchmark artifacts under `benchmark/results/<run_id>/`
 - `metadata.json`
 - `timeseries.csv`
@@ -102,3 +115,10 @@ Each lab now declares a `cost_model` so the comparison report can tie architectu
 - `results/comparison.json`
 
 These artifacts summarize the latest `comparison_standard` run from each lab and turn the repo into one cumulative benchmark narrative instead of ten disconnected experiments.
+
+The report now also includes a final architecture comparison table covering:
+- complexity
+- dominant cost axis
+- scalability posture
+- failure handling posture
+- real-world architectural mapping

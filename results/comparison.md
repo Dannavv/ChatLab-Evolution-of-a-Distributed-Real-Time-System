@@ -14,6 +14,23 @@ This report compares the latest run of each lab's shared `comparison_standard` s
 | lab-08-global-multi-region | comparison_standard | 2.00 | 1.83 | 0.00 | Eventual cross-region convergence | Latency-based regional affinity with asynchronous bridge replication. | Bridge lag, replication backlog, and regional isolation during partial failure. | Cross-region egress and duplicated regional infrastructure. | OK (0.00% delivered) |
 | lab-09-message-security | comparison_standard | 1.60 | 64.82 | 0.00 | Eventual secure visibility | Same regional or local routing as the prior architecture, with crypto validation at ingress. | Key rotation overhead, replay rejection, and decrypt/signature failures. | CPU cycles for encryption, decryption, signing, and verification. | OK (0.00% delivered) |
 | lab-10-microservices-migration | comparison_standard | 9.05 | 65.04 | 0.00 | Service-coordinated durability with eventual multi-service visibility | Gateway-mediated routing with service-specific downstream ownership. | Inter-service latency, partial outages, and dependency amplification. | Service-to-service hops, duplicated runtime overhead, and operational complexity. | OK (0.00% delivered) |
+| lab-11-production-grade-blueprint | comparison_standard | - | - | - | Service-coordinated durability with operational guardrails | Gateway-mediated routing with service-specific downstream ownership and standardized control-plane tooling. | Dependency degradation, rate-limit pressure, and service recovery under observability. | Service-to-service hops, database writes, broker overhead, and operational complexity. | PENDING COMPARABLE RUN |
+
+## Architecture Comparison
+
+| Lab | Complexity | Cost Axis | Scalability | Failure Handling | Real-World Mapping |
+|---|---|---|---|---|---|
+| lab-01-monolith-baseline | Low | CPU and memory on one node. | Single node only | Best-effort only; restart loses state | Prototype or hackathon MVP |
+| lab-02-persistence-layer | Low-Medium | Database IOPS and write latency. | Single writer with durable history | DB retry and history recovery | Small-team chat with durable history |
+| lab-03-redis-pubsub | Medium | Broker CPU, memory, and cross-node network traffic. | Horizontal websocket fan-out | Broker disconnect and duplicate detection | Early WhatsApp-style brokered fan-out |
+| lab-04-scalable-monolith | Medium | CPU and memory consumed by queue depth and worker concurrency. | Higher burst tolerance on one node | Local queue backpressure and drops | Queue-protected monolith |
+| lab-05-cloud-native-chat-infrastructure | Medium-High | Queue infrastructure, worker CPU, and database writes. | Independent ingest and worker scaling | Queue buffering and async recovery | Netflix-style async ingest pipeline |
+| lab-06-chaos-and-resilience | High | Retry amplification and spare capacity for fault tolerance. | Async pipeline with resilience controls | Circuit breaker, retry, and DLQ | Resilience-first service mesh pattern |
+| lab-07-real-time-presence-and-delivery | High | Memory footprint and websocket session density. | High websocket density with soft-state routing | Presence drift and duplicate suppression | WhatsApp or Discord-style realtime edge |
+| lab-08-global-multi-region | High | Cross-region egress and duplicated regional infrastructure. | Regional scale with async cross-region replication | Regional isolation and bridge backlog handling | Multi-region messaging backbone |
+| lab-09-message-security | High | CPU cycles for encryption, decryption, signing, and verification. | Security-aware distributed runtime | Replay defense, decrypt failure, key rotation handling | Signal-style secure messaging concerns |
+| lab-10-microservices-migration | Very High | Service-to-service hops, duplicated runtime overhead, and operational complexity. | Independent service scaling | Per-service isolation and degraded dependency handling | Large-team service-oriented platform |
+| lab-11-production-grade-blueprint | Very High | Service-to-service hops, database writes, broker overhead, and operational complexity. | Deployable capstone blueprint | Resilience, observability, and control-plane aware | Pragmatic production-ready team blueprint |
 
 ## Progression Summary
 
@@ -29,3 +46,4 @@ This report compares the latest run of each lab's shared `comparison_standard` s
 | lab-08-global-multi-region | Geography forces a formal consistency trade-off and a formal routing policy. | trace_id and message_id survive regional ingest, bridge forwarding, and remote rebroadcast. | Prometheus metrics on regional nodes and the bridge service. |
 | lab-09-message-security | Confidentiality and integrity change the system budget even when topology stays similar. | trace_id and message_id survive signing, verification, decrypt, and broadcast. | Prometheus metrics plus security-specific failure paths surfaced in the service. |
 | lab-10-microservices-migration | The architecture becomes operationally composable, but routing, tracing, and cost must be managed as first-class concerns. | trace_id and message_id propagate through gateway, message service, history service, and storage. | Prometheus metrics plus trace IDs propagated through HTTP headers and messages. |
+| lab-11-production-grade-blueprint | The architecture becomes deployable as a repeatable blueprint, but platform discipline becomes mandatory. | trace_id and message_id propagate through gateway, message service, history service, and storage. | Prometheus, Grafana, benchmark artifacts, and structured container logs via Docker Compose. |

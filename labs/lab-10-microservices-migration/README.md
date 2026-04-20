@@ -1,4 +1,4 @@
-[🏠 Home](../../README.md) | [⬅️ Previous (Lab 09)](../lab-09-message-security/README.md)
+[🏠 Home](../../README.md) | [⬅️ Previous (Lab 09)](../lab-09-message-security/README.md) | [Next Lab (Lab 11) ➡️](../lab-11-production-grade-blueprint/README.md)
 
 # Lab 10: Microservices Migration
 ## *The Mesh, The Gateway, and Service Isolation*
@@ -92,7 +92,7 @@ Performance changes because isolation is buying independence with additional net
 - **The Gateway is the King**: In a mesh, the Gateway is your most critical scaling point. If the Gateway lags, the whole world lags.
 
 ### ✅ What This Enables For Next Lab
-Lab 10 is the end of the current curriculum path. It leaves the system in a shape where future extensions could focus on specialized domains such as analytics, compliance, moderation, or deeper global control planes without rebuilding the entire runtime again.
+Lab 10 gives us the service boundaries. Lab 11 turns those ideas into a deployable blueprint with standardized operational controls, Prometheus, Grafana, and one consistent setup and failure-injection workflow.
 
 ---
 
@@ -106,4 +106,4 @@ python3 labs/lab-10-microservices-migration/benchmark/run.py
 ```
 
 ---
-[🏠 Return to Project Home](../../README.md)
+[Next Lab: Lab 11 (Production-Grade Blueprint) ➡️](../lab-11-production-grade-blueprint/README.md)

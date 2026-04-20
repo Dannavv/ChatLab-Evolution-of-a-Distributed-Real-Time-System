@@ -130,6 +130,21 @@ services:
     networks:
       - chat-net
 
+  grafana:
+    image: grafana/grafana:10.4.2
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ../../shared/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../../shared/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3006:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - chat-net
+
 volumes:
   archive-data:
   minio-data:
