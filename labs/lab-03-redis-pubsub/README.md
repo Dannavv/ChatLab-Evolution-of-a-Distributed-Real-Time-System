@@ -6,13 +6,25 @@
 **Purpose:** distribute message fan-out across multiple chat nodes by introducing Redis Pub/Sub as a shared message bus.  
 **Hypothesis:** moving broadcast coordination onto Redis will add a small network hop, but it will remove the single-node isolation problem and improve horizontal scaling behavior.
 
+## Hook
+Run this lab to prove horizontal fan-out works across nodes. The key result is not just latency, but whether distributed clients share the same conversation state reliably.
+
+## Learning Outcomes
+- Explain how a broker removes single-node broadcast isolation.
+- Measure the network hop cost of Redis-backed fan-out.
+- Identify eventual-consistency and duplicate-delivery risks in multi-node messaging.
+
+## Why This Matters in Production
+Horizontal scale usually fails first at message distribution, not CPU alone. This lab shows why shared bus design is a core production architecture decision.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Clients -> Load Balancer -> Chat Nodes <-> Redis Pub/Sub
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- Multi-node fan-out should remain coherent across clients connected to different replicas.
+- You should observe improved scale characteristics versus single-node-only broadcast.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

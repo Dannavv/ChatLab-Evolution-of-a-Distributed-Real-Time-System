@@ -6,13 +6,25 @@
 **Purpose:** protect the hot path of a single node by introducing internal queues and worker pools.  
 **Hypothesis:** queueing work behind workers will stabilize throughput during bursts, but it will convert synchronous blocking into visible queueing latency.
 
+## Hook
+This lab demonstrates backpressure inside a monolith. You are testing whether queueing and worker pools prevent handler collapse or just move latency deeper into the system.
+
+## Learning Outcomes
+- Explain how worker pools trade lock contention for queueing behavior.
+- Measure when backlog growth begins to dominate user-visible latency.
+- Evaluate whether this pattern extends monolith viability before service split.
+
+## Why This Matters in Production
+Many teams need one more scaling step before full microservices. This lab shows when internal backpressure controls are enough and when they are not.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Client -> Ingress -> Queue -> Worker Pool -> Broadcast Path
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- Throughput should stay steadier under bursts compared with naive synchronous handling.
+- Queueing delay should become visible in p95/p99 once workers saturate.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

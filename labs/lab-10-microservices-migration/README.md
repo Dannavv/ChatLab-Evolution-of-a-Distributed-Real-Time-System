@@ -6,13 +6,25 @@
 **Purpose:** split the final application surface into focused services so reads, writes, routing, and failures can scale independently.  
 **Hypothesis:** service isolation will improve organizational and runtime fault boundaries, but it will raise baseline latency by adding more network hops and coordination edges.
 
+## Hook
+This migration tests whether service isolation is worth the network tax. Compare resilience and scaling boundaries against the extra coordination overhead introduced by multiple services.
+
+## Learning Outcomes
+- Explain gateway, message-service, and history-service boundary decisions.
+- Measure added hop latency versus improved failure isolation.
+- Identify operational complexity introduced by multi-service ownership.
+
+## Why This Matters in Production
+Microservices improve team and fault isolation, but they also increase baseline latency and platform burden. This lab makes that trade-off measurable before a real migration.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Client -> Gateway -> Message Service + History Service
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- Baseline latency should rise due to additional service hops.
+- Failure isolation should improve compared with tightly coupled monolith paths.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

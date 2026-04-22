@@ -64,5 +64,6 @@ python3 scripts/chatlab.py fail lab-11-production-grade-blueprint heal redis
 Run local validation gates to ensure system integrity:
 ```bash
 python3 scripts/chatlab.py validate --kind workloads
+python3 scripts/chatlab.py validate --kind readmes
 python3 scripts/chatlab.py validate --kind slos
 ```

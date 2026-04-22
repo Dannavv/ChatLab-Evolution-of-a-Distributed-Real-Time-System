@@ -1,4 +1,4 @@
-.PHONY: list up down status bench suite report observe fail doctor clean
+.PHONY: list up down status bench suite report observe fail doctor clean validate
 
 # Default: show help
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "  make observe LAB=<name> Show observability URLs"
 	@echo "  make suite             Run benchmarks for all labs"
 	@echo "  make report            Regenerate comparison report"
+	@echo "  make validate          Run all validation gates (workloads, readmes, results, slos)"
 	@echo "  make clean             Remove all benchmark results"
 
 doctor:
@@ -41,6 +42,9 @@ suite:
 
 report:
 	@python3 scripts/chatlab.py report
+
+validate:
+	@python3 scripts/chatlab.py validate
 
 clean:
 	@rm -rf results/*.json results/*.md labs/lab-*/benchmark/results/*

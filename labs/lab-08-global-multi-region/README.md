@@ -6,13 +6,25 @@
 **Purpose:** separate local user experience from global propagation by introducing regional clusters and an asynchronous bridge.  
 **Hypothesis:** regional isolation will preserve fast local latency, while inter-region synchronization will expose unavoidable physical-distance costs and eventual-consistency trade-offs.
 
+## Hook
+This lab forces a real global trade-off: local low latency versus cross-region consistency. Validate where asynchronous bridging helps and where it introduces convergence delay.
+
+## Learning Outcomes
+- Explain regional affinity and asynchronous bridge replication behavior.
+- Measure the impact of distance and replication lag on user experience.
+- Identify where eventual consistency is acceptable and where it is not.
+
+## Why This Matters in Production
+Global chat systems cannot optimize latency and strict consistency everywhere at once. This lab gives you a concrete framework for that product-level decision.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Regional Clients -> Regional Nodes -> Async Cross-Region Bridge
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- Local-region latency should remain low while inter-region convergence is delayed but stable.
+- Bridge lag should become a primary reliability and freshness signal.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

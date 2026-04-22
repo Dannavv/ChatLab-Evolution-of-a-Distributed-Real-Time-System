@@ -100,6 +100,8 @@ def validate(kind):
     checks = []
     if kind in ["all", "workloads"]:
         checks.append([sys.executable, str(ROOT_DIR / "scripts" / "validate_workloads.py")])
+    if kind in ["all", "readmes"]:
+        checks.append([sys.executable, str(ROOT_DIR / "scripts" / "validate_readmes.py")])
     if kind in ["all", "results"]:
         checks.append([sys.executable, str(ROOT_DIR / "scripts" / "validate_results.py")])
     if kind in ["all", "slos"]:
@@ -268,7 +270,7 @@ def main():
     validate_cmd = sub.add_parser("validate")
     validate_cmd.add_argument(
         "--kind",
-        choices=["all", "workloads", "results", "slos"],
+        choices=["all", "workloads", "readmes", "results", "slos"],
         default="all",
     )
 

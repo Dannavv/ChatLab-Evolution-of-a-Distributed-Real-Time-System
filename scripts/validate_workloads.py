@@ -5,11 +5,14 @@ from pathlib import Path
 
 import yaml
 
-from shared.benchmark.framework import REQUIRED_WORKLOAD_KEYS
-
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 LABS_DIR = ROOT_DIR / "labs"
+
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from shared.benchmark.framework import REQUIRED_WORKLOAD_KEYS
 
 
 def _load_yaml(path):

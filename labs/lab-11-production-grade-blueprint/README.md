@@ -6,6 +6,17 @@
 **Purpose:** convert the service-split architecture from Lab 10 into an operable blueprint with explicit resilience controls, observability standards, and repeatable recovery workflows.
 **Hypothesis:** adding rate limits, circuit breakers, retries, tracing, and chaos verification will improve operational safety under failure, but it will add measurable latency and throughput overhead.
 
+## Hook
+This capstone is where architecture becomes operations: run failure-injected benchmarks, observe control-plane behavior, and validate whether resilience guardrails hold under stress.
+
+## Learning Outcomes
+- Explain how resilience controls (rate limits, circuit breakers, retries, idempotency) change system behavior under load.
+- Correlate performance shifts with traces and metrics instead of relying on assumptions.
+- Judge production readiness based on recovery behavior, not only happy-path throughput.
+
+## Why This Matters in Production
+Real incidents are dominated by degraded dependencies and cascading retries. This lab shows how to turn those failure paths into controlled, observable behavior with explicit operational policies.
+
 ## Overview
 This capstone focuses on operating quality, not only feature delivery. The system is intentionally built to answer practical production questions:
 - Can the platform degrade predictably when dependencies are slow or down?
@@ -41,6 +52,10 @@ make bench LAB=lab-11-production-grade-blueprint chaos=true
 # Teardown
 make down LAB=lab-11-production-grade-blueprint
 ```
+
+### Expected Result
+- Normal runs produce measurable p95/throughput/reliability artifacts and stable traces.
+- Chaos runs show temporary degradation with observable recovery behavior rather than silent collapse.
 
 ## What Changed From Previous Lab
 - Added control-plane behavior at ingress: global Redis-backed rate limiting and dependency-aware circuit breaker actions.

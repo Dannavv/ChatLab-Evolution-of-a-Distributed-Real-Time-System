@@ -6,13 +6,25 @@
 **Purpose:** establish the fastest single-node baseline by keeping all active state and broadcasts inside one process.  
 **Hypothesis:** in-memory chat will deliver the best latency floor, but tail latency will rise sharply once one mutex-guarded node absorbs enough concurrent traffic.
 
+## Hook
+Use this lab to establish your performance floor. Once you can quantify monolith latency and throughput, every later architecture change has a concrete baseline to justify its complexity.
+
+## Learning Outcomes
+- Measure the lowest-latency path when all state stays in one process.
+- Identify where single-node lock contention begins to degrade tail latency.
+- Explain why speed without durability is a risky production default.
+
+## Why This Matters in Production
+Teams often start with a monolith because it is fast and simple. This lab teaches the exact boundary where that simplicity becomes an availability and durability liability.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Client -> Single Chat Server -> In-Memory State
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- You should see the best median latency in the series under moderate load.
+- Under higher concurrency, contention should appear in tail latency and throughput flattening.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

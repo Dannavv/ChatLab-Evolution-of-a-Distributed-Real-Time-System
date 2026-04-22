@@ -6,13 +6,25 @@
 **Purpose:** protect message confidentiality across the distributed system by adding encryption and key-management behavior.  
 **Hypothesis:** stronger security will consume real CPU and coordination budget, producing a measurable security tax in latency and throughput.
 
+## Hook
+Security changes runtime economics. This lab quantifies the performance and operational cost of adding encryption, signing, and key management to realtime messaging.
+
+## Learning Outcomes
+- Explain where confidentiality and integrity checks add compute and latency.
+- Measure the security tax in throughput and tail latency.
+- Identify key rotation, replay, and decrypt failure risks in distributed flows.
+
+## Why This Matters in Production
+Secure messaging is rarely free. This lab helps you choose security controls that satisfy threat models without unintentionally breaking performance SLOs.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Client -> Secure Ingress (Sign/Encrypt) -> Messaging Runtime
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- Message flow should preserve integrity and confidentiality guarantees under load.
+- Latency and CPU overhead should rise compared with non-secure equivalents.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

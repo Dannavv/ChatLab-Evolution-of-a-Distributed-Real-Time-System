@@ -6,13 +6,25 @@
 **Purpose:** add presence and delivery-style state to the system so we can measure the cost of ephemeral coordination beyond plain chat messages.  
 **Hypothesis:** presence fan-out will raise background traffic and state churn enough that connection count, not just message count, becomes a dominant scaling factor.
 
+## Hook
+Presence and delivery semantics can cost more than message send itself. This lab shows how ephemeral state churn changes scaling behavior and tail latency.
+
+## Learning Outcomes
+- Explain why connection density and state freshness become first-class concerns.
+- Measure the overhead of delivery and presence updates under load.
+- Identify drift and stale-state risks in realtime coordination paths.
+
+## Why This Matters in Production
+User trust in chat products depends on accurate presence and delivery indicators. This lab maps the hidden infrastructure cost of those UX expectations.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Clients -> WebSocket Edge -> Presence/Delivery Coordination -> Redis
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- Presence and delivery events should remain consistent across nodes under moderate load.
+- Under higher load, drift and fan-out overhead should appear before hard failure.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

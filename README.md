@@ -4,6 +4,17 @@
 
 ChatLab is a curated journey through the evolution of distributed systems. It transforms a simple stateful monolith into a **hardened, production-grade microservices blueprint** that handles global scale, partial failures, and deep observability.
 
+## Hook
+Build and benchmark the same chat product through 11 architecture stages, then use real p95/throughput/reliability data to decide which design is right for a production constraint, not just a textbook pattern.
+
+## Learning Outcomes
+- Explain how each architectural step changes latency, throughput, and reliability behavior.
+- Evaluate backpressure, durability, consistency, and failure-handling trade-offs with benchmark evidence.
+- Select an architecture based on product constraints, team boundaries, and operational risk.
+
+## Why This Matters in Production
+Most architecture guides show static diagrams; this repository shows measured trade-offs under load and failure. The goal is to help you make better decisions when budgets, incidents, and scaling pressure are real.
+
 > [!IMPORTANT]
 > **Hardened Edition:** This repository now includes production-grade resilience patterns, including Circuit Breakers, Global Rate Limiting, Distributed Tracing (Jaeger), and Automated Chaos Testing.
 

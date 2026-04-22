@@ -6,13 +6,25 @@
 **Purpose:** keep the system responsive when downstream processing degrades by adding explicit failure-management behavior.  
 **Hypothesis:** circuit breakers, retries, and dead-letter routing will reduce cascading failures and turn unstable slowdowns into observable, recoverable states.
 
+## Hook
+This lab tests behavior under controlled failure, not ideal load. Run chaos scenarios to verify whether retries, circuit controls, and DLQ policies actually limit blast radius.
+
+## Learning Outcomes
+- Explain how resilience controls affect throughput and tail latency during outages.
+- Measure whether recovery happens predictably after injected failures.
+- Identify retry amplification and fallback risks before production incidents.
+
+## Why This Matters in Production
+Most outages are partial dependency failures, not full system crashes. This lab teaches how to design graceful degradation instead of cascading failure.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Client -> API -> Queue/Workers + Circuit Breakers + DLQ
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- During chaos, latency should spike but recover toward baseline with bounded error growth.
+- Recovery metrics should confirm whether resilience policies are correctly tuned.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

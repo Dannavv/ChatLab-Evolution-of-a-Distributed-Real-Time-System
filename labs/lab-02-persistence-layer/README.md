@@ -6,13 +6,25 @@
 **Purpose:** add durable storage to the chat path so messages can survive process restarts and support a history API.  
 **Hypothesis:** persistence will improve correctness and usefulness, but it will increase end-to-end latency and expose a new bottleneck around database writes.
 
+## Hook
+This is the first durability checkpoint. Compare Lab 02 against Lab 01 to see the exact persistence tax you pay to stop losing messages on restart.
+
+## Learning Outcomes
+- Quantify how PostgreSQL writes affect p50 and p95 latency.
+- Explain the difference between fast broadcast and durable write guarantees.
+- Identify durability failure modes when the database path degrades.
+
+## Why This Matters in Production
+Most chat products need history, audits, and restart safety. This lab shows that durability is a business requirement with a measurable performance cost.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Client -> Chat Server -> PostgreSQL + In-Memory Broadcast
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- Durability should improve correctness and restart behavior.
+- Latency should rise versus Lab 01 due to storage path overhead.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

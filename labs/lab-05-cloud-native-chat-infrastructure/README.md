@@ -6,13 +6,25 @@
 **Purpose:** decouple the ingest path from the processing path so the API can stay fast while background workers handle heavier storage work.  
 **Hypothesis:** pushing work into Redis and letting workers handle slower storage tasks will keep ingest latency low even when downstream processing is expensive.
 
+## Hook
+This lab is where async architecture starts paying off. Validate whether separating ingest from heavy processing protects user-facing latency during load spikes.
+
+## Learning Outcomes
+- Explain how queue decoupling changes ingest latency behavior.
+- Measure the trade-off between responsiveness and eventual completion semantics.
+- Identify backlog-related failure modes before user-visible outages.
+
+## Why This Matters in Production
+Production traffic is bursty. This pattern lets systems absorb spikes without immediately degrading user-facing APIs, at the cost of delayed downstream completion.
+
 ## Overview
 This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
 
 ## Architecture
 ```text
-Client -> Ingress -> Chat Service -> State or Queue Layer
+Client -> API Ingest -> Queue -> Worker -> Durable Storage
 ```
+See the architecture diagram in this README for the detailed topology.
 
 ## How to Run
 ### Quick Start (Docker)
@@ -20,22 +32,26 @@ Client -> Ingress -> Chat Service -> State or Queue Layer
 docker-compose up --build
 ```
 
+### Expected Result
+- Ingest latency should remain lower during bursts than synchronous processing designs.
+- Queue lag and worker pressure should become the key stability signals.
+
 ## What Changed From Previous Lab
-See the What Changed From Previous Lab section below for the delta from the prior lab.
+See the detailed What Changed From Previous Lab section below for the exact deltas.
 
 ## Results
-See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+Use Performance Analysis plus benchmark artifacts in assets/benchmarks to validate this lab hypothesis.
 
 ## Limitations
-See the Limitations section below.
+See the detailed Limitations section below.
 
 ## Known Issues
-- Tail latency can rise quickly during bursty load.
-- Delivery and durability guarantees depend on this lab architecture.
+- Tail latency can rise quickly during bursty or uneven load.
+- Delivery and durability guarantees vary by architecture and workload shape.
 
 ## When This Architecture Fails
-- Sustained concurrency exceeds local capacity or queue budget.
-- Dependency latency (DB/Redis/network) triggers cascading delays.
+- Sustained concurrency exceeds local capacity, queue budget, or dependency limits.
+- Dependency latency (DB/Redis/network) amplifies retries and causes cascading delay.
 
 ## Folder Structure
 ```text

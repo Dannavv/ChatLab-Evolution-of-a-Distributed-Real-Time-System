@@ -28,6 +28,7 @@ Run a specific gate:
 
 ```bash
 python3 scripts/chatlab.py validate --kind workloads
+python3 scripts/chatlab.py validate --kind readmes
 python3 scripts/chatlab.py validate --kind results
 python3 scripts/chatlab.py validate --kind slos
 ```
@@ -61,6 +62,10 @@ python3 scripts/chatlab.py report
 Workload validation:
 - PASS means all workload manifests satisfy required keys and include comparison_standard scenario details.
 - FAIL means one or more manifests violate the benchmark contract.
+
+README validation:
+- PASS means root and lab READMEs satisfy required section order, expected-result blocks, and visual requirements.
+- FAIL means one or more docs drifted from the README contract.
 
 Results validation:
 - PASS means comparison markdown and json are coherent and reliability status text matches available metrics.
