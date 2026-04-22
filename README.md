@@ -11,6 +11,12 @@ ChatLab is a curated journey through the evolution of distributed systems. It tr
 
 The primary entry point for all operations is the root `Makefile`.
 
+Optional local environment bootstrap:
+
+```bash
+cp .env.example .env
+```
+
 ```bash
 # 1. Check your environment
 make doctor
@@ -32,6 +38,24 @@ This project isn't just about "working" code; it's about "operating" code. The f
 - **Observability:** Distributed Tracing with OpenTelemetry and Jaeger.
 - **Security:** ULID stable ID generation and Idempotency hardening.
 - **Rigor:** Automated failure injection (Chaos) with Recovery Time (RTO) metrics.
+
+## 📊 System Evolution Summary
+
+Quick comparison from the latest `comparison_standard` runs. Full details remain in `results/comparison.md`.
+
+| Lab | Architecture | Avg Latency (p50) | P95 Latency | Throughput |
+| :--- | :--- | :---: | :---: | :---: |
+| 1 | Monolith baseline | 2.05 ms | 2.80 ms | 65.07 msgs/s |
+| 2 | Monolith + PostgreSQL persistence | 2.76 ms | 3.50 ms | 65.04 msgs/s |
+| 3 | Redis Pub/Sub distributed mesh | 1.30 ms | 1.55 ms | 67.22 msgs/s |
+| 4 | Scalable monolith (worker pool) | 1.74 ms | 2.14 ms | 49.29 msgs/s |
+| 5 | Cloud-native async pipeline | 1.40 ms | 1.62 ms | 65.04 msgs/s |
+| 6 | Chaos + resilience controls | 1.43 ms | 1.62 ms | 65.04 msgs/s |
+| 7 | Presence + delivery tracking | 1.08 ms | 1.26 ms | 65.04 msgs/s |
+| 8 | Global multi-region bridge | 1.50 ms | 2.00 ms | 1.83 msgs/s |
+| 9 | Message security hardening | 1.24 ms | 1.60 ms | 64.82 msgs/s |
+| 10 | Microservices migration | 7.49 ms | 9.05 ms | 65.04 msgs/s |
+| 11 | Production-grade blueprint | 7.91 ms | 9.11 ms | 43.52 msgs/s |
 
 ## ⌨️ CLI Command Reference
 

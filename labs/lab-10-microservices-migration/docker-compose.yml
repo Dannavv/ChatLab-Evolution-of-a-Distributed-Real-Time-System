@@ -15,6 +15,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -26,6 +27,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   gateway:
     build:
       context: ../../
@@ -52,6 +54,7 @@ services:
           cpus: '0.5'
           memory: 512M
 
+    restart: always
   message-service:
     build:
       context: ../../
@@ -77,6 +80,7 @@ services:
           cpus: '0.5'
           memory: 512M
 
+    restart: always
   history-service:
     build:
       context: ../../
@@ -98,6 +102,7 @@ services:
           cpus: '0.5'
           memory: 512M
 
+    restart: always
   prometheus:
     image: prom/prometheus:latest
     volumes:
@@ -111,6 +116,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   grafana:
     image: grafana/grafana:10.4.2
     environment:
@@ -126,6 +132,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
 networks:
   chat-net:
     driver: bridge

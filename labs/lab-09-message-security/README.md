@@ -6,6 +6,47 @@
 **Purpose:** protect message confidentiality across the distributed system by adding encryption and key-management behavior.  
 **Hypothesis:** stronger security will consume real CPU and coordination budget, producing a measurable security tax in latency and throughput.
 
+## Overview
+This lab introduces one focused architectural step in the ChatLab evolution and captures measured trade-offs against the previous stage.
+
+## Architecture
+```text
+Client -> Ingress -> Chat Service -> State or Queue Layer
+```
+
+## How to Run
+### Quick Start (Docker)
+```bash
+docker-compose up --build
+```
+
+## What Changed From Previous Lab
+See the What Changed From Previous Lab section below for the delta from the prior lab.
+
+## Results
+See Performance Analysis plus benchmark artifacts in assets/benchmarks.
+
+## Limitations
+See the Limitations section below.
+
+## Known Issues
+- Tail latency can rise quickly during bursty load.
+- Delivery and durability guarantees depend on this lab architecture.
+
+## When This Architecture Fails
+- Sustained concurrency exceeds local capacity or queue budget.
+- Dependency latency (DB/Redis/network) triggers cascading delays.
+
+## Folder Structure
+```text
+lab-x/
+  |- README.md
+  |- docker-compose.yml
+  |- benchmark/
+  |- services/
+  |- assets/
+```
+
 ### 🎯 Objective
 This lab adds confidentiality as a first-class concern. The goal is to show that cryptography is not just a checkbox layered onto the transport path; it changes runtime cost, operational coordination, and the shape of performance under load.
 

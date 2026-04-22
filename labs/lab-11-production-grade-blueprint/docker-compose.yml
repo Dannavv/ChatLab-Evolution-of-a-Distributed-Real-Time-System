@@ -15,6 +15,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -26,6 +27,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   jaeger:
     image: jaegertracing/all-in-one:1.55
     environment:
@@ -36,6 +38,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   gateway:
     build:
       context: ../../
@@ -58,6 +61,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   message-service:
     build:
       context: ../../
@@ -77,6 +81,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   history-service:
     build:
       context: ../../
@@ -92,6 +97,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   prometheus:
     image: prom/prometheus:latest
     volumes:
@@ -105,6 +111,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   grafana:
     image: grafana/grafana:10.4.2
     environment:
@@ -120,6 +127,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
 networks:
   chat-net:
     driver: bridge

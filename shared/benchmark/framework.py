@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from pathlib import Path
 
 import requests
@@ -67,11 +68,26 @@ def _run_version_command(command):
         return 'unknown'
 
 
+def next_request_id():
+    return uuid.uuid4().hex[:8]
+
+
+def get_with_retry(url, attempts=3, timeout=2, backoff_seconds=0.1):
+    for attempt in range(attempts):
+        try:
+            response = requests.get(url, timeout=timeout)
+            return response
+        except Exception:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(backoff_seconds * (attempt + 1))
+
+
 def wait_for_health(url, timeout_seconds=90):
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         try:
-            response = requests.get(url, timeout=2)
+            response = get_with_retry(url, attempts=3, timeout=2, backoff_seconds=0.1)
             if response.ok:
                 return True
         except Exception:
@@ -91,6 +107,14 @@ def percentile(values, p):
         return float(ordered[lower])
     weight = idx - lower
     return float(ordered[lower] * (1 - weight) + ordered[upper] * weight)
+
+
+def compute_p95_simple(latencies):
+    if not latencies:
+        return 0.0
+    ordered = sorted(latencies)
+    idx = min(len(ordered) - 1, int(0.95 * len(ordered)))
+    return float(ordered[idx])
 
 
 def build_latency_histogram(latencies):
@@ -238,16 +262,22 @@ def write_run_summary(run_dir):
 
     Path(run_dir, 'benchmark_summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
 
+    p95_simple = compute_p95_simple(latencies)
+    summary_request_id = next_request_id()
+
     if sent == 0 and received == 0:
         print('WARNING: k6 sent/received counters are unavailable (missing or unreadable k6_summary.json).')
         print('WARNING: delivery ratio and duplicate ratio are not measurable for this run.')
 
     print('\nBenchmark summary')
+    print(f'[REQ {summary_request_id}] summary generated')
     print(
         'Latency p50/p90/p95/p99: '
         f"{summary['latency_ms']['p50']:.2f} / {summary['latency_ms']['p90']:.2f} / "
         f"{summary['latency_ms']['p95']:.2f} / {summary['latency_ms']['p99']:.2f} ms"
     )
+    print(f'[LATENCY] {summary["latency_ms"]["p95"]:.2f} ms (p95)')
+    print(f'[LATENCY] {p95_simple:.2f} ms (p95 simple)')
     if db_latencies:
         print(
             'DB write p50/p90/p95/p99: '
@@ -293,7 +323,7 @@ def run_sampler(metrics_url, output_path, stop_event, scrape_interval_seconds, s
         handle.write('timestamp_s,vus,latency_ms,db_latency_ms,memory_mb,messages_total,dropped_total,db_errors_total,error_rate_pct,throughput_msgs_s\n')
         while not stop_event.is_set():
             try:
-                text = requests.get(metrics_url, timeout=2).text
+                text = get_with_retry(metrics_url, attempts=3, timeout=2, backoff_seconds=0.1).text
             except Exception:
                 time.sleep(scrape_interval_seconds)
                 continue
@@ -333,13 +363,15 @@ def run_sampler(metrics_url, output_path, stop_event, scrape_interval_seconds, s
 
             summary_tick = elapsed // max(summary_interval_seconds, 1)
             if elapsed > 0 and summary_tick != last_summary_tick and elapsed % max(summary_interval_seconds, 1) == 0:
+                req_id = next_request_id()
                 print(
-                    f'[t+{elapsed:>3}s] vus={int(active_connections):>4} '
+                    f'[REQ {req_id}] [t+{elapsed:>3}s] vus={int(active_connections):>4} '
                     f'tput={throughput_msgs_s:>7.2f} msgs/s '
                     f'lat={latency_ms:>7.2f} ms '
                     f'db={db_latency_ms:>7.2f} ms '
                     f'err={error_rate_pct:>6.2f}%'
                 )
+                print(f'[LATENCY] {latency_ms:.2f} ms')
                 last_summary_tick = summary_tick
             time.sleep(scrape_interval_seconds)
 

@@ -15,6 +15,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -26,6 +27,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -40,6 +42,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   minio-sync:
     image: minio/mc:latest
     depends_on:
@@ -58,6 +61,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   chat-api:
     build:
       context: ../../
@@ -85,6 +89,7 @@ services:
           cpus: '0.5'
           memory: 512M
 
+    restart: always
   chat-worker:
     build:
       context: ../../
@@ -118,6 +123,7 @@ services:
           cpus: '0.5'
           memory: 512M
 
+    restart: always
   prometheus:
     image: prom/prometheus:latest
     volumes:
@@ -130,6 +136,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   grafana:
     image: grafana/grafana:10.4.2
     environment:
@@ -145,6 +152,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
 volumes:
   archive-data:
   minio-data:

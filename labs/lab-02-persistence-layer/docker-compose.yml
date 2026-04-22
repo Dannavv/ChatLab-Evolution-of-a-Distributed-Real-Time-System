@@ -20,6 +20,7 @@ services:
           cpus: '0.5'
           memory: 512M
 
+    restart: always
   db:
     image: postgres:15-alpine
     environment:
@@ -36,6 +37,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   prometheus:
     image: prom/prometheus:latest
     volumes:
@@ -45,6 +47,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
   grafana:
     image: grafana/grafana:10.4.2
     environment:
@@ -60,6 +63,7 @@ services:
     networks:
       - chat-net
 
+    restart: always
 networks:
   chat-net:
     driver: bridge
