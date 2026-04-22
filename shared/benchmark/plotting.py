@@ -2,6 +2,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
+import shutil
 from pathlib import Path
 
 plt.style.use('default')
@@ -20,12 +21,22 @@ plt.rcParams.update({
 })
 
 
+def _ensure_numeric_columns(df):
+    """Convert columns to numeric, handling parse errors gracefully."""
+    numeric_cols = ['latency_ms', 'db_latency_ms', 'vus', 'memory_mb', 'messages_total', 'dropped_total', 'db_errors_total', 'error_rate_pct', 'throughput_msgs_s']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    return df
+
+
 def _prepare_frame(csv_path):
     csv_path = Path(csv_path)
     if not csv_path.exists():
         return None
     try:
         df = pd.read_csv(csv_path)
+        df = _ensure_numeric_columns(df)
         if 'timestamp_s' not in df.columns:
             df = df.rename(columns={'timestamp': 'timestamp_s'})
         df = df[df['timestamp_s'] >= 3].copy()
@@ -33,7 +44,8 @@ def _prepare_frame(csv_path):
         if 'db_latency_ms' in df.columns:
             df['db_latency_smooth'] = df['db_latency_ms'].rolling(window=15, min_periods=1, center=True).mean()
         return df
-    except Exception:
+    except Exception as e:
+        print(f"WARNING: Could not parse CSV {csv_path}: {e}")
         return None
 
 
@@ -48,8 +60,6 @@ def plot_latency_scaling(df, path):
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.plot(df['timestamp_s'], df['latency_ms'], color='#cf222e', alpha=0.05)
     ax.plot(df['timestamp_s'], df['latency_smooth'], color='#cf222e', label='E2E Latency')
-    if 'db_latency_smooth' in df.columns:
-        ax.plot(df['timestamp_s'], df['db_latency_smooth'], color='#0969da', linestyle='--', label='SQL Latency')
     ax.set_yscale('log')
     ax.set_ylabel('ms')
     ax.set_title('Performance Scaling Profile', fontweight='bold')
@@ -80,11 +90,8 @@ def plot_quad_dashboard(df, path, scenario):
     axes[0, 1].plot(df['timestamp_s'], df['vus'], color='#0969da')
     axes[0, 1].set_title('Workload (VUs)')
 
-    if 'db_latency_smooth' in df.columns:
-        axes[1, 0].plot(df['timestamp_s'], df['db_latency_smooth'], color='#0969da')
-    else:
-        axes[1, 0].text(0.5, 0.5, 'N/A (Memory Only)', ha='center', va='center')
-    axes[1, 0].set_title('SQL Overhead (ms)')
+    axes[1, 0].plot(df['timestamp_s'], df['throughput_msgs_s'], color='#1f883d')
+    axes[1, 0].set_title('Throughput (msgs/s)')
 
     axes[1, 1].plot(df['timestamp_s'], df['memory_mb'], color='#8250df')
     axes[1, 1].set_title('Memory (MB)')
@@ -108,21 +115,77 @@ def generate_run_graphs(run_dir):
     plot_quad_dashboard(df, graphs_dir / 'modern_quad_dashboard.png', scenario)
 
 
-def generate_suite_graphs(results_root):
+def generate_suite_graphs(results_root, root_dir=None):
+    """Generate suite-level graphs from the latest comparable run."""
     results_root = Path(results_root)
+    if root_dir is None:
+        root_dir = results_root.parent.parent.parent.parent
+    
     runs = sorted([d for d in results_root.iterdir() if d.is_dir()], key=lambda x: x.stat().st_mtime, reverse=True)
     if not runs:
+        print(f"⚠️  No benchmark runs found in {results_root}")
         return
 
     latest_run = runs[0]
     df = _prepare_frame(latest_run / 'timeseries.csv')
     if df is None:
+        print(f"⚠️  Could not parse timeseries.csv from {latest_run.name}")
         return
 
-    assets_dir = results_root.parent.parent / 'assets' / 'benchmarks'
+    assets_dir = root_dir / 'assets' / 'benchmarks'
     scenario = latest_run.name.split('__')[1] if '__' in latest_run.name else latest_run.name
 
     plot_latency_scaling(df, assets_dir / 'modern_latency_scaling.png')
     plot_reliability_loss(df, assets_dir / 'modern_reliability_loss.png')
     plot_quad_dashboard(df, assets_dir / 'modern_quad_dashboard.png', scenario)
     print(f"✅ Suite assets exported to: {assets_dir}")
+
+
+def refresh_lab_readme_assets(results_root, lab_assets_dir, scenario='comparison_standard'):
+    """Sync lab README graph assets from the latest comparable run."""
+    results_root = Path(results_root)
+    lab_assets_dir = Path(lab_assets_dir)
+
+    if not results_root.exists():
+        print(f"⚠️  Results directory not found: {results_root}")
+        return False
+
+    runs = sorted(
+        [d for d in results_root.iterdir() if d.is_dir() and scenario in d.name],
+        key=lambda x: x.stat().st_mtime,
+        reverse=True,
+    )
+    if not runs:
+        print(f"⚠️  No {scenario} runs found in {results_root}")
+        return False
+
+    latest_run = runs[0]
+    if not (latest_run / 'timeseries.csv').exists():
+        print(f"⚠️  Latest run missing timeseries.csv: {latest_run.name}")
+        return False
+
+    generate_run_graphs(latest_run)
+
+    graph_names = [
+        'modern_latency_scaling.png',
+        'modern_reliability_loss.png',
+        'modern_quad_dashboard.png',
+    ]
+    lab_assets_dir.mkdir(parents=True, exist_ok=True)
+
+    copied = 0
+    for graph_name in graph_names:
+        src = latest_run / 'graphs' / graph_name
+        dst = lab_assets_dir / graph_name
+        if not src.exists():
+            print(f"⚠️  Missing graph in run output: {src}")
+            continue
+        shutil.copy2(src, dst)
+        copied += 1
+
+    if copied == len(graph_names):
+        print(f"✅ Synced README assets from {latest_run.name} -> {lab_assets_dir}")
+        return True
+
+    print(f"⚠️  Partial sync ({copied}/{len(graph_names)}) for {lab_assets_dir}")
+    return False

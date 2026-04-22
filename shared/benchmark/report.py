@@ -157,10 +157,17 @@ def _status_line(row):
         return row['status']
     summary = row.get('summary', {})
     reliability = summary.get('reliability', {})
+    error_rate = reliability.get('error_rate_pct')
     delivery = reliability.get('delivery_ratio_pct')
-    if delivery is None:
-        return 'OK'
-    return f"OK ({_fmt_number(delivery)}% delivered)"
+    totals = summary.get('totals', {})
+    sent = totals.get('sent', 0)
+    received = totals.get('received', 0)
+
+    if sent and received:
+        return f"OK ({_fmt_number(delivery)}% delivered, {_fmt_number(error_rate)}% errors)"
+    if error_rate and float(error_rate) > 0:
+        return f"OK ({_fmt_number(error_rate)}% errors; delivery unavailable)"
+    return 'OK (delivery unavailable)'
 
 
 def build_comparison_artifacts():
@@ -206,6 +213,7 @@ def build_comparison_artifacts():
             'latency_ms': latency,
             'throughput_msgs_s': throughput,
             'reliability': reliability,
+            'totals': summary.get('totals', {}),
             'consistency_model': workload.get('consistency_model', {}),
             'routing_strategy': workload.get('routing_strategy', {}),
             'failure_model': workload.get('failure_model', {}),

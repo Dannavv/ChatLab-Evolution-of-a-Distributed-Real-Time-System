@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from shared.benchmark.report import build_comparison_artifacts
+from shared.benchmark.plotting import generate_suite_graphs, refresh_lab_readme_assets
 
 ROOT_DIR = Path(__file__).resolve().parent
 LABS_DIR = ROOT_DIR / 'labs'
@@ -36,6 +37,10 @@ def run_lab_benchmark(lab_name, scenario=None):
     try:
         # Run and stream output to console
         subprocess.run(cmd, check=True)
+
+        results_root = LABS_DIR / lab_name / 'benchmark' / 'results'
+        assets_dir = LABS_DIR / lab_name / 'assets' / 'benchmarks'
+        refresh_lab_readme_assets(results_root, assets_dir, scenario='comparison_standard')
     except subprocess.CalledProcessError as e:
         print(f"❌ Benchmark failed for {lab_name}: {e}")
     except KeyboardInterrupt:
@@ -79,6 +84,13 @@ def main():
             print(f"\n☢️  CRITICAL: STARTING GLOBAL REGRESSION ({len(labs)} Labs)...")
             for lab in labs:
                 run_lab_benchmark(lab)
+            
+            # Generate suite-level comparison graphs
+            print('\n🎯 Generating suite-level comparison graphs...')
+            for lab in labs:
+                results_root = LABS_DIR / lab / 'benchmark' / 'results'
+                generate_suite_graphs(results_root, root_dir=ROOT_DIR)
+            
             report_path = build_comparison_artifacts()
             print(f"📊 Comparison report updated: {report_path}")
             print("\n✅ GLOBAL REGRESSION COMPLETE.")

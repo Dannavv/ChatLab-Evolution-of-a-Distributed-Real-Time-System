@@ -44,6 +44,13 @@ Run the comparable suite across every benchmark-enabled lab:
 python3 scripts/chatlab.py suite --scenario comparison_standard
 ```
 
+By default this command excludes Lab 11 so the suite stays fast for routine local checks.
+Include the capstone explicitly when needed:
+
+```bash
+python3 scripts/chatlab.py suite --scenario comparison_standard --include-blueprint
+```
+
 Run the comparable suite for one lab:
 
 ```bash
@@ -54,6 +61,12 @@ Rebuild the aggregate report:
 
 ```bash
 python3 scripts/chatlab.py report
+```
+
+Run local quality gates:
+
+```bash
+python3 scripts/chatlab.py validate
 ```
 
 ## Deep-Dive Scenarios

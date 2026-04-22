@@ -20,10 +20,31 @@ Run the fair-comparison suite across all labs:
 python3 scripts/chatlab.py suite --scenario comparison_standard
 ```
 
+Include Lab 11 in the suite when you want capstone evidence:
+
+```bash
+python3 scripts/chatlab.py suite --scenario comparison_standard --include-blueprint
+```
+
+Run Lab 11 on demand:
+
+```bash
+python3 scripts/chatlab.py bench lab-11-production-grade-blueprint --scenario comparison_standard
+```
+
 Rebuild the aggregate comparison report:
 
 ```bash
 python3 scripts/chatlab.py report
+```
+
+Run local validation gates:
+
+```bash
+python3 scripts/chatlab.py validate
+python3 scripts/chatlab.py validate --kind workloads
+python3 scripts/chatlab.py validate --kind results
+python3 scripts/chatlab.py validate --kind slos
 ```
 
 The interactive benchmark menu still exists:

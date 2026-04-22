@@ -93,6 +93,10 @@ Every lab is expected to expose:
 - `benchmark_summary.json`
 - generated graphs
 
+Delivery metrics caveat:
+- `delivery_ratio` and `duplicate_ratio` rely on k6 custom counters exported to `k6_summary.json`
+- when `k6_summary.json` is missing or unreadable, sent and received counters are unavailable and report status reflects that explicitly
+
 ## Cost Awareness
 
 Each lab now declares a `cost_model` so the comparison report can tie architectural choices to their dominant resource axis:
@@ -115,6 +119,14 @@ Each lab now declares a `cost_model` so the comparison report can tie architectu
 - `results/comparison.json`
 
 These artifacts summarize the latest `comparison_standard` run from each lab and turn the repo into one cumulative benchmark narrative instead of ten disconnected experiments.
+
+For local quality gates, use:
+
+```bash
+python3 scripts/chatlab.py validate
+```
+
+Validation includes workload contract checks, report consistency checks, and SLO evaluation.
 
 The report now also includes a final architecture comparison table covering:
 - complexity

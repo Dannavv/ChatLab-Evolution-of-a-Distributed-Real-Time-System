@@ -8,6 +8,8 @@ from pathlib import Path
 
 import yaml
 
+from shared.benchmark.plotting import generate_suite_graphs, refresh_lab_readme_assets
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 LABS_DIR = ROOT_DIR / "labs"
@@ -70,7 +72,14 @@ def benchmark(name, scenario):
     command = [sys.executable, str(lab_dir(name) / "benchmark" / "run.py")]
     if scenario:
         command += ["--scenario", scenario]
-    return run(command, cwd=ROOT_DIR)
+    result = run(command, cwd=ROOT_DIR)
+
+    if scenario == STANDARD_SCENARIO:
+        results_root = lab_dir(name) / "benchmark" / "results"
+        assets_dir = lab_dir(name) / "assets" / "benchmarks"
+        refresh_lab_readme_assets(results_root, assets_dir, scenario=STANDARD_SCENARIO)
+
+    return result
 
 
 def rebuild_report():
@@ -80,6 +89,19 @@ def rebuild_report():
         "from shared.benchmark.report import build_comparison_artifacts; print(build_comparison_artifacts())",
     ]
     return run(command, cwd=ROOT_DIR)
+
+
+def validate(kind):
+    checks = []
+    if kind in ["all", "workloads"]:
+        checks.append([sys.executable, str(ROOT_DIR / "scripts" / "validate_workloads.py")])
+    if kind in ["all", "results"]:
+        checks.append([sys.executable, str(ROOT_DIR / "scripts" / "validate_results.py")])
+    if kind in ["all", "slos"]:
+        checks.append([sys.executable, str(ROOT_DIR / "scripts" / "validate_slos.py")])
+
+    for command in checks:
+        run(command, cwd=ROOT_DIR)
 
 
 def observe(name):
@@ -114,6 +136,13 @@ def suite(names, scenario):
     benchmarkable = [name for name in names if (lab_dir(name) / "benchmark" / "run.py").exists()]
     for name in benchmarkable:
         benchmark(name, scenario)
+    
+    # Generate suite-level comparison graphs
+    print('\n🎯 Generating suite-level comparison graphs...')
+    for name in benchmarkable:
+        results_root = lab_dir(name) / 'benchmark' / 'results'
+        generate_suite_graphs(results_root, root_dir=ROOT_DIR)
+    
     rebuild_report()
 
 
@@ -230,6 +259,15 @@ def main():
 
     sub.add_parser("report")
 
+    validate_cmd = sub.add_parser("validate")
+    validate_cmd.add_argument(
+        "--kind",
+        choices=["all", "workloads", "results", "slos"],
+        default="all",
+    )
+
+    sub.add_parser("regenerate-graphs")
+
     args = parser.parse_args()
 
     if args.command == "list":
@@ -264,6 +302,13 @@ def main():
         return
     if args.command == "report":
         rebuild_report()
+        return
+    if args.command == "validate":
+        validate(args.kind)
+        return
+    if args.command == "regenerate-graphs":
+        import subprocess
+        result = subprocess.run([sys.executable, str(ROOT_DIR / "scripts" / "regenerate_all_graphs.py")], cwd=ROOT_DIR)
         return
     if args.command == "fail":
         if args.action == "kill":

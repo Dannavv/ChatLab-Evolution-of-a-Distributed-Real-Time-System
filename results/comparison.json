@@ -20,6 +20,14 @@
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
       },
+      "totals": {
+        "messages_total": 6117,
+        "dropped_total": 0,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
+      },
       "consistency_model": {
         "target": "Immediate single-node visibility",
         "notes": "One in-memory authority; no distributed replication or persistence semantics."
@@ -69,6 +77,14 @@
         "error_rate_pct": 0.0,
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
+      },
+      "totals": {
+        "messages_total": 5919,
+        "dropped_total": 0,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
       },
       "consistency_model": {
         "target": "Strong single-writer durability",
@@ -120,6 +136,14 @@
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
       },
+      "totals": {
+        "messages_total": 6117,
+        "dropped_total": 112,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
+      },
       "consistency_model": {
         "target": "Eventual multi-node convergence",
         "notes": "Redis pub/sub favors fast fan-out over durable cross-node ordering guarantees."
@@ -169,6 +193,14 @@
         "error_rate_pct": 29.521,
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
+      },
+      "totals": {
+        "messages_total": 4485,
+        "dropped_total": 1324,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
       },
       "consistency_model": {
         "target": "Immediate single-node visibility with queued internal processing",
@@ -220,6 +252,14 @@
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
       },
+      "totals": {
+        "messages_total": 5919,
+        "dropped_total": 0,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
+      },
       "consistency_model": {
         "target": "Async durable processing with eventual visibility",
         "notes": "Ingest and processing are decoupled; acknowledgement and final visibility may diverge."
@@ -269,6 +309,14 @@
         "error_rate_pct": 0.0,
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
+      },
+      "totals": {
+        "messages_total": 5919,
+        "dropped_total": 0,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
       },
       "consistency_model": {
         "target": "Eventual durability with resilience controls",
@@ -321,6 +369,14 @@
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
       },
+      "totals": {
+        "messages_total": 5919,
+        "dropped_total": 56,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
+      },
       "consistency_model": {
         "target": "Mixed model with eventual presence convergence",
         "notes": "Presence and typing are intentionally softer-consistency signals than persisted messages."
@@ -370,6 +426,14 @@
         "error_rate_pct": 0.0,
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
+      },
+      "totals": {
+        "messages_total": 167,
+        "dropped_total": 0,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
       },
       "consistency_model": {
         "target": "Eventual cross-region convergence",
@@ -421,6 +485,14 @@
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
       },
+      "totals": {
+        "messages_total": 5834,
+        "dropped_total": 0,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
+      },
       "consistency_model": {
         "target": "Eventual secure visibility",
         "notes": "Security preserves message identity while adding CPU-bound processing before visibility."
@@ -471,6 +543,14 @@
         "delivery_ratio_pct": 0.0,
         "duplicate_ratio_pct": 0.0
       },
+      "totals": {
+        "messages_total": 5919,
+        "dropped_total": 0,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
+      },
       "consistency_model": {
         "target": "Service-coordinated durability with eventual multi-service visibility",
         "notes": "The write path is durable, but reads and fan-out now cross service boundaries with explicit trace propagation."
@@ -504,11 +584,12 @@
     {
       "lab": "lab-11-production-grade-blueprint",
       "scenario": "comparison_standard",
-      "status": "PENDING COMPARABLE RUN",
-      "run_dir": null,
+      "status": "OK",
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-11-production-grade-blueprint/benchmark/results/lab11__comparison_standard__20260422T104921Z",
       "latency_ms": {},
       "throughput_msgs_s": {},
       "reliability": {},
+      "totals": {},
       "consistency_model": {
         "target": "Service-coordinated durability with operational guardrails",
         "notes": "The write path is durable and visible through one deployable control plane with metrics and dashboards."

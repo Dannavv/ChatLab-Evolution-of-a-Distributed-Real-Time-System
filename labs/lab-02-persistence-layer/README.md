@@ -1,7 +1,7 @@
 [🏠 Home](../../README.md) | [⬅️ Previous (Lab 01)](../lab-01-monolith-baseline/README.md) | [Next Lab (Lab 03) ➡️](../lab-03-redis-pubsub/README.md)
 
 # Lab 02: The Persistence Layer
-## *Durable State, SQL Overhead, and the Persistence Tax*
+## *Durable State and the Persistence Tax*
 
 **Purpose:** add durable storage to the chat path so messages can survive process restarts and support a history API.  
 **Hypothesis:** persistence will improve correctness and usefulness, but it will increase end-to-end latency and expose a new bottleneck around database writes.
@@ -106,6 +106,8 @@ We introduce **PostgreSQL** to the architecture. Every incoming message is now p
 - **Dropped messages / DB errors**: Shows reliability or persistence issues.
 - **Error rate**: Percentage of dropped messages and DB failures relative to processed messages.
 
+Note: the shared benchmark dashboard no longer renders an SQL-overhead subgraph. Some labs do not export `chat_db_query_duration_ms_*`, and in those cases Prometheus-derived DB latency values default to 0 in sampled timeseries data.
+
 ### 🧪 Expected Results Before Running
 - `comparison_standard` should produce higher p50/p90/p99 latency than Lab 01 because the durable path adds SQL work.
 - DB write p50/p90/p99 should stay below total end-to-end latency, which helps separate storage cost from the rest of the request path.
@@ -144,7 +146,7 @@ The read path uses an index on `room_id` and returns the latest 50 messages orde
 1. **The Persistence Tax**: In the checked-in standard run, end-to-end latency lands at **p50 6.39 ms / p90 7.75 ms / p99 9.25 ms**. That shift above Lab 01 is the durability cost.
 2. **The Scaling Profile**: 
    ![Latency Scaling](assets/benchmarks/modern_latency_scaling.png)
-   *Figure 3: Median latency response isolating the impact of SQL writes on system speed.*
+  *Figure 3: Median latency response under increasing concurrency in the persistence-backed architecture.*
 
 ### 🧾 Interpretation
 Performance changes here for a concrete reason, not a mysterious one. Each message now creates extra work: the server stamps metadata, schedules a database write, waits for SQL capacity to be available, and still has to serialize and broadcast to connected clients. Even when the write runs asynchronously, database pressure shows up in the tail because the application and storage paths now contend for the same single-node resources.
@@ -168,7 +170,7 @@ Use this combined graph as the primary Lab 01 vs Lab 02 comparison view. The sep
 
 ### ⏱️ Time-Series Stability View
 ![Run Audit](assets/benchmarks/run_audit.png)
-*Figure 6: The run audit is the clearest time-series view of stability in Lab 02. It shows end-to-end latency, load, SQL latency, and throughput loss evolving together over time.*
+*Figure 6: The run audit is the clearest time-series view of stability in Lab 02. It shows end-to-end latency, load, throughput, and reliability loss evolving together over time.*
 
 ### ⚖️ Lab 01 vs Lab 02 Comparison
 The table below compares the checked-in Lab 01 baseline run against the Lab 02 standard persistence run. Both percentile sets come from their sampled `timeseries.csv` outputs.

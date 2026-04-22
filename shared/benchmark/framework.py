@@ -3,6 +3,7 @@ import csv
 import datetime as dt
 import json
 import math
+import platform
 import signal
 import subprocess
 import sys
@@ -55,6 +56,15 @@ def read_metric_value(text, metric_name):
 
 def run_command(command, cwd=None, check=False):
     return subprocess.run(command, cwd=cwd, shell=True, check=check)
+
+
+def _run_version_command(command):
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        output = (result.stdout or result.stderr or '').strip()
+        return output or 'unknown'
+    except Exception:
+        return 'unknown'
 
 
 def wait_for_health(url, timeout_seconds=90):
@@ -198,6 +208,10 @@ def write_run_summary(run_dir):
     }
     Path(run_dir, 'benchmark_summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
 
+    if sent == 0 and received == 0:
+        print('WARNING: k6 sent/received counters are unavailable (missing or unreadable k6_summary.json).')
+        print('WARNING: delivery ratio and duplicate ratio are not measurable for this run.')
+
     print('\nBenchmark summary')
     print(
         'Latency p50/p90/p95/p99: '
@@ -327,6 +341,13 @@ def run_scenario(lab_dir, scenario_name, scenario, workload):
         'observability': workload['observability'],
         'cost_model': workload['cost_model'],
         'synthesis': workload['synthesis'],
+        'run_context': {
+            'python_version': sys.version.split()[0],
+            'platform': platform.platform(),
+            'docker_version': _run_version_command(['docker', '--version']),
+            'docker_compose_version': _run_version_command(['docker', 'compose', 'version']),
+            'k6_image': 'grafana/k6',
+        },
         'workload': workload,
     }
     (run_dir / 'metadata.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
@@ -370,11 +391,17 @@ def run_scenario(lab_dir, scenario_name, scenario, workload):
     k6_process.wait()
     stop_event.set()
     sampler_thread.join(timeout=10)
+
+    if not k6_summary_path.exists():
+        print(f'WARNING: expected k6 summary export is missing: {k6_summary_path}')
+        print('WARNING: reliability sent/received counters will default to zero for this run.')
+
     run_command('docker-compose down', cwd=lab_dir)
 
     generate_run_graphs(run_dir)
     write_run_summary(run_dir)
     build_comparison_artifacts()
+    print(f'✅ Graphs generated for: {run_dir.name}')
     return run_dir
 
 
@@ -407,6 +434,6 @@ def main(lab_dir):
         if scenario:
             run_scenario(lab_dir, scenario_name, scenario, workload)
 
-    generate_suite_graphs(results_root)
+    generate_suite_graphs(results_root, root_dir=lab_dir.parent.parent)
     build_comparison_artifacts()
     print(f'\n✅ {lab_dir.name.upper()} benchmark complete.')
