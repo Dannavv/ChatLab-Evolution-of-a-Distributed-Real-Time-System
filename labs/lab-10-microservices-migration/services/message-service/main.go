@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -18,6 +21,8 @@ import (
 
 	"github.com/antigravity/chat-lab/shared/backend/protocol"
 	"github.com/antigravity/chat-lab/shared/backend/telemetry"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 var (
@@ -60,6 +65,11 @@ type incomingEnvelope struct {
 var lastTraceID string
 
 func main() {
+	if collectorURL := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); collectorURL != "" {
+		shutdown := telemetry.InitTracer("message-service", collectorURL)
+		defer shutdown()
+	}
+
 	redisClient = connectRedis(redisURL)
 	dbConn = connectDB(dbURL)
 
@@ -69,8 +79,20 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 
 	telemetry.StartMemoryTracking(2 * time.Second)
-	fmt.Printf("Lab 10 message service %s listening on :%s\n", nodeID, port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	
+	server := &http.Server{Addr: ":" + port}
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+		fmt.Printf("\nShutting down message service %s...\n", nodeID)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		server.Shutdown(ctx)
+	}()
+
+	fmt.Printf("Lab 11/10 Hardened Message Service %s listening on :%s\n", nodeID, port)
+	log.Fatal(server.ListenAndServe())
 }
 
 func handleMessages(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +102,11 @@ func handleMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	start := time.Now()
+	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	tr := otel.Tracer("message-service")
+	ctx, span := tr.Start(ctx, "handleMessages")
+	defer span.End()
+
 	var msg protocol.Message
 	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
 		messageServiceErrorsTotal.Inc()
@@ -133,17 +160,27 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveMessage(ctx context.Context, msg protocol.Message) error {
-	messageID := fmt.Sprintf("%s-%d", msg.TraceID, msg.Timestamp)
-	_, err := dbConn.Exec(
-		"INSERT INTO messages (message_id, user_id, room_id, content, trace_id, source_service, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) ON CONFLICT (message_id) DO NOTHING",
-		messageID,
-		msg.UserID,
-		msg.RoomID,
-		msg.Content,
-		msg.TraceID,
-		msg.SourceService,
-	)
-	return err
+	tr := otel.Tracer("message-service")
+	_, span := tr.Start(ctx, "saveMessage")
+	defer span.End()
+
+	messageID := msg.MessageID
+	if messageID == "" {
+		messageID = fmt.Sprintf("%s-%d", msg.TraceID, msg.Timestamp)
+	}
+	
+	return withRetry(3, 100*time.Millisecond, func() error {
+		_, err := dbConn.Exec(
+			"INSERT INTO messages (message_id, user_id, room_id, content, trace_id, source_service, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) ON CONFLICT (message_id) DO NOTHING",
+			messageID,
+			msg.UserID,
+			msg.RoomID,
+			msg.Content,
+			msg.TraceID,
+			msg.SourceService,
+		)
+		return err
+	})
 }
 
 func publishMessage(ctx context.Context, msg protocol.Message) error {
@@ -151,7 +188,26 @@ func publishMessage(ctx context.Context, msg protocol.Message) error {
 	if err != nil {
 		return err
 	}
-	return redisClient.Publish(ctx, eventsChannel, payload).Err()
+	
+	return withRetry(3, 50*time.Millisecond, func() error {
+		return redisClient.Publish(ctx, eventsChannel, payload).Err()
+	})
+}
+
+func withRetry(attempts int, baseBackoff time.Duration, fn func() error) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		if err = fn(); err == nil {
+			return nil
+		}
+		if i < attempts-1 {
+			// Jittered exponential backoff
+			jitter := time.Duration(rand.Int63n(int64(baseBackoff / 2)))
+			time.Sleep(baseBackoff + jitter)
+			baseBackoff *= 2
+		}
+	}
+	return err
 }
 
 func connectDB(dbConn string) *sql.DB {

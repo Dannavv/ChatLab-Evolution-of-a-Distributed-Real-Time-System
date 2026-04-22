@@ -6,12 +6,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-import yaml
 
-from shared.benchmark.plotting import generate_suite_graphs, refresh_lab_readme_assets
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+import yaml
+from shared.benchmark.plotting import generate_suite_graphs, refresh_lab_readme_assets
 LABS_DIR = ROOT_DIR / "labs"
 
 STANDARD_SCENARIO = "comparison_standard"
@@ -68,10 +71,12 @@ def compose(name, *args):
     return run(command, cwd=lab_dir(name))
 
 
-def benchmark(name, scenario):
+def benchmark(name, scenario=None, chaos=False):
     command = [sys.executable, str(lab_dir(name) / "benchmark" / "run.py")]
     if scenario:
         command += ["--scenario", scenario]
+    if chaos:
+        command += ["--chaos"]
     result = run(command, cwd=ROOT_DIR)
 
     if scenario == STANDARD_SCENARIO:
@@ -245,6 +250,7 @@ def main():
     bench_cmd = sub.add_parser("bench")
     bench_cmd.add_argument("lab")
     bench_cmd.add_argument("--scenario", default=STANDARD_SCENARIO)
+    bench_cmd.add_argument("--chaos", action="store_true", help="Inject failure during benchmark")
 
     suite_cmd = sub.add_parser("suite")
     suite_cmd.add_argument("--scenario", default=STANDARD_SCENARIO)
@@ -294,7 +300,7 @@ def main():
         logs(args.lab, service=args.service, follow=args.follow)
         return
     if args.command == "bench":
-        benchmark(args.lab, args.scenario)
+        benchmark(args.lab, args.scenario, chaos=args.chaos)
         return
     if args.command == "suite":
         labs = [name for name in list_labs() if args.include_blueprint or name != "lab-11-production-grade-blueprint"]

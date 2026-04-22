@@ -2,17 +2,30 @@
 
 This benchmark validates the deployable blueprint stack under the same fair-comparison contract used by the rest of the repo.
 
-## What It Runs
-- `benchmark/workload.yaml` defines the comparable and validation scenarios.
-- `benchmark/run.py` starts the stack, samples Prometheus, and runs the WebSocket load generator.
-- The shared plotting and reporting pipeline updates the repo-wide comparison artifacts.
+## 🧪 What It Runs
+- **Workload:** `benchmark/workload.yaml` defines the comparable and validation scenarios.
+- **Chaos Testing:** Supports the `--chaos` flag to inject service failures mid-run.
+- **Metrics:** Automatically samples Prometheus and calculates the **Recovery Time Objective (RTO)**.
+- **Visuals:** Generates latency, throughput, and reliability graphs.
 
-## Scenarios
-- `comparison_standard`: fair cross-lab comparison scenario
-- `blueprint_validation`: modest capstone steady-load validation
+## 📈 Scenarios
+- `comparison_standard`: Fair cross-lab comparison scenario.
+- `blueprint_validation`: Modest capstone steady-load validation.
 
-## Run
+## 🚀 Execution
+
+The recommended way to run this is via the root `Makefile`:
 
 ```bash
-python3 scripts/chatlab.py bench lab-11-production-grade-blueprint --scenario comparison_standard
+# Standard benchmark
+make bench LAB=lab-11-production-grade-blueprint
+
+# Chaos-injected benchmark (tests Circuit Breakers and Recovery)
+make bench LAB=lab-11-production-grade-blueprint chaos=true
+```
+
+Or using the raw CLI:
+
+```bash
+python3 scripts/chatlab.py bench lab-11-production-grade-blueprint --scenario comparison_standard --chaos
 ```

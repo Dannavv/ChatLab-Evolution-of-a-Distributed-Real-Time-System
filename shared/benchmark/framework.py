@@ -162,6 +162,8 @@ def load_workload(lab_dir):
 
 def write_run_summary(run_dir):
     rows = load_timeseries_rows(Path(run_dir) / 'timeseries.csv')
+    metadata = json.loads((Path(run_dir) / 'metadata.json').read_text())
+    
     latencies = [float(row['latency_ms']) for row in rows if float(row['latency_ms']) > 0]
     db_latencies = [float(row.get('db_latency_ms', 0) or 0) for row in rows if float(row.get('db_latency_ms', 0) or 0) > 0]
     throughputs = [float(row.get('throughput_msgs_s', 0) or 0) for row in rows]
@@ -204,8 +206,36 @@ def write_run_summary(run_dir):
             'delivery_ratio_pct': round(delivery_ratio_pct, 3),
             'duplicate_ratio_pct': round((duplicates / sent * 100.0), 3) if sent > 0 else 0.0,
         },
+        'chaos_metrics': {},
         'latency_histogram': build_latency_histogram(latencies),
     }
+
+    # Calculate RTO if chaos event occurred
+    if 'chaos_event' in metadata:
+        chaos_start = metadata['chaos_event']['start_relative_s']
+        chaos_end = metadata['chaos_event']['end_relative_s']
+        
+        # Calculate baseline latency (avg of 10s before chaos)
+        baseline_rows = [float(r['latency_ms']) for r in rows if chaos_start - 10 <= int(r['timestamp_s']) < chaos_start]
+        baseline = sum(baseline_rows) / len(baseline_rows) if baseline_rows else summary['latency_ms']['p50']
+        
+        # Find recovery time: first point after chaos_end where latency < baseline * 1.5
+        recovery_time = None
+        for row in rows:
+            ts = int(row['timestamp_s'])
+            if ts > chaos_end:
+                lat = float(row['latency_ms'])
+                if lat < baseline * 1.5:
+                    recovery_time = ts - chaos_end
+                    break
+        
+        summary['chaos_metrics'] = {
+            'chaos_start_s': chaos_start,
+            'chaos_end_s': chaos_end,
+            'recovery_time_s': recovery_time or -1, # -1 means didn't recover within run
+            'rto_s': recovery_time if recovery_time else None
+        }
+
     Path(run_dir, 'benchmark_summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
 
     if sent == 0 and received == 0:
@@ -239,6 +269,10 @@ def write_run_summary(run_dir):
         f"{summary['totals']['sent']} / {summary['totals']['received']} / "
         f"{summary['totals']['messages_total']} / {summary['totals']['duplicates']}"
     )
+    if summary['chaos_metrics'].get('rto_s') is not None:
+        print(f"🔥 CHAOS Recovery Time (RTO): {summary['chaos_metrics']['rto_s']}s")
+    elif 'chaos_event' in metadata:
+        print(f"🔥 CHAOS Recovery: FAILED (System did not recover baseline latency)")
     print('Latency histogram')
     for line in summary['latency_histogram']:
         print(f'  {line}')
@@ -310,7 +344,34 @@ def run_sampler(metrics_url, output_path, stop_event, scrape_interval_seconds, s
             time.sleep(scrape_interval_seconds)
 
 
-def run_scenario(lab_dir, scenario_name, scenario, workload):
+def run_chaos(lab_dir, stop_event, metadata):
+    # Wait for the benchmark to stabilize
+    time.sleep(20)
+    if stop_event.is_set():
+        return
+
+    service_to_kill = "message-service"
+    print(f"\n🔥 CHAOS: Killing {service_to_kill} in 5s...")
+    time.sleep(5)
+    
+    start_time = time.time()
+    metadata['chaos_event'] = {
+        'service': service_to_kill,
+        'start_relative_s': int(start_time - metadata['_start_ts']),
+    }
+    
+    subprocess.run(["docker", "compose", "stop", service_to_kill], cwd=lab_dir, capture_output=True)
+    print(f"🔥 CHAOS: {service_to_kill} is DOWN")
+    
+    time.sleep(15)
+    
+    end_time = time.time()
+    subprocess.run(["docker", "compose", "start", service_to_kill], cwd=lab_dir, capture_output=True)
+    metadata['chaos_event']['end_relative_s'] = int(end_time - metadata['_start_ts'])
+    print(f"🔥 CHAOS: {service_to_kill} is HEALED")
+
+
+def run_scenario(lab_dir, scenario_name, scenario, workload, chaos=False):
     global k6_process
 
     lab_dir = Path(lab_dir)
@@ -323,8 +384,10 @@ def run_scenario(lab_dir, scenario_name, scenario, workload):
     run_id = f"lab{lab_id_num}__{scenario_name}__{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     run_dir = results_root / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-
+    
+    start_ts = time.time()
     metadata = {
+        '_start_ts': start_ts,
         'run_id': run_id,
         'lab': lab_name,
         'scenario': scenario_name,
@@ -371,6 +434,12 @@ def run_scenario(lab_dir, scenario_name, scenario, workload):
         daemon=True,
     )
     sampler_thread.start()
+    
+    chaos_thread = None
+    if chaos:
+        metadata['chaos_enabled'] = True
+        chaos_thread = threading.Thread(target=run_chaos, args=(lab_dir, stop_event, metadata), daemon=True)
+        chaos_thread.start()
 
     normalized_stages = [{'duration': stage['duration'], 'target': int(stage['target_vus'])} for stage in scenario.get('stages', [])]
     stages_json = json.dumps(normalized_stages)
@@ -391,6 +460,12 @@ def run_scenario(lab_dir, scenario_name, scenario, workload):
     k6_process.wait()
     stop_event.set()
     sampler_thread.join(timeout=10)
+    if chaos_thread:
+        chaos_thread.join(timeout=5)
+    
+    # Remove internal timestamps before saving
+    del metadata['_start_ts']
+    (run_dir / 'metadata.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
 
     if not k6_summary_path.exists():
         print(f'WARNING: expected k6 summary export is missing: {k6_summary_path}')
@@ -423,6 +498,7 @@ def main(lab_dir):
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default=None)
     parser.add_argument('--all', action='store_true')
+    parser.add_argument('--chaos', action='store_true')
     args = parser.parse_args()
 
     workload = load_workload(lab_dir)
@@ -432,7 +508,7 @@ def main(lab_dir):
     selected = scenarios.items() if (args.all or not args.scenario) else [(args.scenario, scenarios.get(args.scenario))]
     for scenario_name, scenario in selected:
         if scenario:
-            run_scenario(lab_dir, scenario_name, scenario, workload)
+            run_scenario(lab_dir, scenario_name, scenario, workload, chaos=args.chaos)
 
     generate_suite_graphs(results_root, root_dir=lab_dir.parent.parent)
     build_comparison_artifacts()

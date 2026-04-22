@@ -1,92 +1,78 @@
-# ChatLab
-### *A Progressive Systems Engineering Curriculum*
+# ChatLab: Evolution of a Distributed Real-Time System
 
 ![ChatLab Cover](./assets/cover.png)
 
+ChatLab is a curated journey through the evolution of distributed systems. It transforms a simple stateful monolith into a **hardened, production-grade microservices blueprint** that handles global scale, partial failures, and deep observability.
+
+> [!IMPORTANT]
+> **Hardened Edition:** This repository now includes production-grade resilience patterns, including Circuit Breakers, Global Rate Limiting, Distributed Tracing (Jaeger), and Automated Chaos Testing.
+
+## 🛠️ Quick Start (The "System Owner" Way)
+
+The primary entry point for all operations is the root `Makefile`.
+
+```bash
+# 1. Check your environment
+make doctor
+
+# 2. List all available labs
+make list
+
+# 3. Spin up the final capstone blueprint
+make up LAB=lab-11-production-grade-blueprint
+
+# 4. Run a chaos-injected benchmark (kills services mid-run)
+make bench LAB=lab-11-production-grade-blueprint chaos=true
+```
+
+## 📖 The "Hardened" Architecture
+This project isn't just about "working" code; it's about "operating" code. The final labs implement:
+
+- **Resilience:** Circuit Breakers, Jittered Exponential Backoff, and Graceful Shutdown.
+- **Observability:** Distributed Tracing with OpenTelemetry and Jaeger.
+- **Security:** ULID stable ID generation and Idempotency hardening.
+- **Rigor:** Automated failure injection (Chaos) with Recovery Time (RTO) metrics.
+
+## ⌨️ CLI Command Reference
+
+While you can use `scripts/chatlab.py` directly, the `Makefile` is the recommended interface to avoid pathing confusion.
+
+| Command | Description |
+| :--- | :--- |
+| `make doctor` | **Run this first.** Checks if Docker, Go, k6, and Python are ready. |
+| `make up LAB=<name>` | Starts the Docker stack for a specific lab. |
+| `make down LAB=<name>` | Stops and cleans up the stack. |
+| `make bench LAB=<name>` | Runs k6 benchmarks and generates a performance report. |
+| `make bench ... chaos=true` | Injects a service failure mid-benchmark to test resilience. |
+| `make status LAB=<name>` | Checks if all containers are healthy. |
+| `make observe LAB=<name>` | Shows the URLs for the Chat UI, Grafana, and Jaeger. |
+| `make suite` | Runs benchmarks for all labs sequentially to generate a comparison report. |
+| `make report` | Manually regenerates the `results/COMPARISON.md` report. |
+
+---
+
+## 🎓 Curriculum Path
+
+1. **[Lab 01: Monolith Baseline](./labs/lab-01-monolith-baseline)** - Single service, in-memory state.
+2. **[Lab 02: Persistence Layer](./labs/lab-02-persistence-layer)** - Adding PostgreSQL for durability.
+3. **[Lab 03: Redis Pub/Sub](./labs/lab-03-redis-pubsub)** - Scaling out the WebSocket tier.
+4. **[Lab 04: Scalable Monolith](./labs/lab-04-scalable-monolith)** - Handling high-concurrency with Go routines.
+5. **[Lab 05: Cloud-Native Infra](./labs/lab-05-cloud-native-chat-infrastructure)** - Metrics (Prometheus) and Dashboards (Grafana).
+6. **[Lab 06: Chaos & Resilience](./labs/lab-06-chaos-and-resilience)** - Intro to retries and partial failures.
+7. **[Lab 07: Presence & Delivery](./labs/lab-07-real-time-presence-and-delivery)** - Redis sets for user tracking.
+8. **[Lab 08: Global Multi-Region](./labs/lab-08-global-multi-region)** - Geographic partitioning and latency.
+9. **[Lab 09: Message Security](./labs/lab-09-message-security)** - HMAC signatures and encryption.
+10. **[Lab 10: Microservices Migration](./labs/lab-10-microservices-migration)** - Splitting into Gateway, Message, and History services.
+11. **[Lab 11: Production-Grade Blueprint](./labs/lab-11-production-grade-blueprint)** - **THE HARDENED CAPSTONE.**
+
+---
+
 ## 📑 Executive Summary
-The ChatLab “Evolution” repository shows a clear stepwise build-out of a chat system. This curriculum transitions from a simple stateful monolith to a global, multi-region distributed architecture. Each lab is hardened to introduce industry-standard patterns: durable message logs (Kafka), CAP-theorem-aware design (AP preference), stateless service architectures, and deep observability (Tracing, Metrics, Logs).
+The ChatLab “Evolution” repository shows a clear stepwise build-out of a chat system. This curriculum transitions from a simple stateful monolith to a global, multi-region distributed architecture. Each lab is hardened to introduce industry-standard patterns: durable message logs, CAP-theorem-aware design, stateless service architectures, and deep observability (Tracing, Metrics, Logs).
 
-ChatLab is a distributed-systems learning repo built around one evolving product: a real-time chat system. Each lab introduces one dominant systems problem, benchmarks the trade-off with the same comparable workload, and leaves behind a runnable architecture you can inspect locally.
+## 🚀 Standard Commands
 
-### 🏛️ The Systematic Evolution
-The curriculum follows a stepwise build-out of a production-grade system, transitioning from a simple stateful monolith to a global, multi-region distributed architecture.
-
-```mermaid
-graph TD
-    subgraph "Phase 1: Foundations"
-      L1[Lab 01: Monolith] -->|Add Persistence| L2[Lab 02: Durable DB]
-    end
-    subgraph "Phase 2: Runtime Scaling"
-      L2 -->|Add Pub/Sub| L3[Lab 03: Redis Scaling]
-      L3 -->|Backpressure| L4[Lab 04: Scalable Monolith]
-    end
-    subgraph "Phase 3: Cloud-Native Reliability"
-      L4 -->|Async Ingest| L5[Lab 05: Task Queues]
-      L5 -->|Resilience| L6[Lab 06: Chaos/Mesh]
-    end
-    subgraph "Phase 4: Real-Time State"
-      L6 -->|Presence| L7[Lab 07: Real-Time Edge]
-      L7 -->|Multi-Region| L8[Lab 08: Global Backbone]
-    end
-    subgraph "Phase 5: Maturity"
-      L8 -->|Security| L9[Lab 09: E2EE]
-      L9 -->|Services| L10[Lab 10: Microservices]
-      L10 -->|Production| L11[Lab 11: Final Blueprint]
-    end
-```
-
-### 🌍 Target Production Architecture
-For a global scale, ChatLab evolves into a multi-region, geo-redundant system.
-
-```mermaid
-flowchart TB
-    subgraph Region1 [US-East]
-      APIGW1((API Gateway))
-      Auth1((Auth Svc))
-      Chat1((Chat Svc))
-      Kafka1[(Kafka Cluster)]
-      DB1[(DB Cluster)]
-    end
-    subgraph Region2 [EU-Central]
-      APIGW2((API Gateway))
-      Auth2((Auth Svc))
-      Chat2((Chat Svc))
-      Kafka2[(Kafka Cluster)]
-      DB2[(DB Cluster)]
-    end
-    CDN((Global LB / CDN))
-    Clients((Clients Worldwide))
-    Clients --> CDN
-    CDN --> APIGW1
-    CDN --> APIGW2
-    Chat1 <--> Kafka1
-    Chat2 <--> Kafka2
-    Kafka1 <-->|MirrorMaker| Kafka2
-```
-
-This repo is benchmarked on a developer machine. It is meant for fair architectural comparison and systems learning, not for unsupported claims about internet-scale production capacity.
-
-### What Changed In This Iteration
-- one standard benchmark suite centered on `comparison_standard`
-- one repo-level control script: `python3 scripts/chatlab.py ...`
-- one guided learning path for what to read, run, and observe
-- one architecture comparison report that now includes complexity, cost, scalability, failure handling, and real-world mapping
-- one shared observability layer with Prometheus, Grafana, and Docker Compose logs
-- one failure-injection workflow for node kill and network delay experiments
-- one new capstone lab: [Lab 11](./labs/lab-11-production-grade-blueprint/README.md)
-
-### Guided Learning Path
-Use the same loop for every lab:
-1. Read the lab README.
-2. Start the stack with `python3 scripts/chatlab.py up <lab-name>`.
-3. Open the observability endpoints with `python3 scripts/chatlab.py observe <lab-name>`.
-4. Run the fair-comparison benchmark with `python3 scripts/chatlab.py bench <lab-name> --scenario comparison_standard`.
-5. Compare the result against [results/comparison.md](./results/comparison.md).
-6. Shut the stack down with `python3 scripts/chatlab.py down <lab-name>`.
-
-The full guided sequence is in [docs/guided-learning-path.md](./docs/guided-learning-path.md).
-
-### Standard Commands
+If you prefer the raw Python CLI:
 
 ```bash
 python3 scripts/chatlab.py list
@@ -97,84 +83,3 @@ python3 scripts/chatlab.py suite --scenario comparison_standard
 python3 scripts/chatlab.py report
 python3 scripts/chatlab.py down lab-01-monolith-baseline
 ```
-
-The legacy interactive launcher in `main.py` still works, but `scripts/chatlab.py` is now the standard entrypoint.
-
-### Standard Benchmark Suite
-
-The fair-comparison suite is centered on one shared workload:
-- scenario: `comparison_standard`
-- load shape: 100 virtual users for 1 minute
-- pacing: one message every 1000 ms
-- payload target: 256 bytes
-- summary outputs: latency, throughput, and error rate
-
-The suite definition is documented in [docs/benchmark-suite.md](./docs/benchmark-suite.md).
-
-### Repository Map
-| Lab | Core concept | Problem focus | Real-world mapping | README |
-| --- | --- | --- | --- | --- |
-| Lab 01 | Monolith baseline | Find the in-memory latency floor | Prototype or hackathon MVP | [Lab 01](./labs/lab-01-monolith-baseline/README.md) |
-| Lab 02 | Persistence layer | Make chat history durable | Small-team durable chat backend | [Lab 02](./labs/lab-02-persistence-layer/README.md) |
-| Lab 03 | Redis pub/sub | Scale fan-out across nodes | Early WhatsApp-style brokered fan-out | [Lab 03](./labs/lab-03-redis-pubsub/README.md) |
-| Lab 04 | Scalable monolith | Add backpressure inside one service | Queue-protected monolith | [Lab 04](./labs/lab-04-scalable-monolith/README.md) |
-| Lab 05 | Cloud-native ingest | Decouple ingest from slow work | Netflix-style async ingest pipeline | [Lab 05](./labs/lab-05-cloud-native-chat-infrastructure/README.md) |
-| Lab 06 | Chaos and resilience | Survive dependency failure safely | Resilience-first service mesh pattern | [Lab 06](./labs/lab-06-chaos-and-resilience/README.md) |
-| Lab 07 | Presence and delivery | Scale ephemeral realtime state | WhatsApp or Discord-style realtime edge | [Lab 07](./labs/lab-07-real-time-presence-and-delivery/README.md) |
-| Lab 08 | Global multi-region | Keep local latency low across regions | Multi-region messaging backbone | [Lab 08](./labs/lab-08-global-multi-region/README.md) |
-| Lab 09 | Message security | Add confidentiality and replay defense | Signal-style secure messaging concerns | [Lab 09](./labs/lab-09-message-security/README.md) |
-| Lab 10 | Microservices migration | Split reads, writes, and failure domains | Large-team service-oriented platform | [Lab 10](./labs/lab-10-microservices-migration/README.md) |
-| Lab 11 | Production-grade blueprint | Consolidate the best decisions into one deployable stack | Pragmatic production-ready team blueprint | [Lab 11](./labs/lab-11-production-grade-blueprint/README.md) |
-
-### Learning Arc
-| Phase | Labs | Dominant question |
-| --- | --- | --- |
-| Foundations | 01-02 | What is the latency floor, and what does durability cost? |
-| Runtime scaling | 03-04 | How do we scale fan-out and make backpressure explicit? |
-| Cloud-native reliability | 05-06 | How do we decouple work and survive failure safely? |
-| Distributed realtime state | 07-09 | How do presence, geography, and security change the design? |
-| Service decomposition | 10 | What does service isolation buy, and what does it cost? |
-| Deployable blueprint | 11 | What does a balanced, production-oriented local reference stack look like? |
-
-### Observability
-Every lab now exposes:
-- Prometheus metrics
-- Docker Compose logs
-- Grafana dashboards
-- benchmark artifacts under `benchmark/results/<run_id>/`
-
-Use `python3 scripts/chatlab.py observe <lab-name>` to print the relevant URLs for the running stack.
-
-### Failure Injection
-Failure handling is part of the learning path now, not a late-stage extra.
-
-Examples:
-
-```bash
-python3 scripts/chatlab.py fail lab-06-chaos-and-resilience kill chat-worker
-python3 scripts/chatlab.py fail lab-06-chaos-and-resilience delay redis --latency-ms 300 --jitter-ms 50
-python3 scripts/chatlab.py fail lab-06-chaos-and-resilience heal redis
-```
-
-The workflow and suggested drills are documented in [docs/failure-injection.md](./docs/failure-injection.md).
-
-### Key Docs
-- [docs/benchmark-suite.md](./docs/benchmark-suite.md)
-- [docs/benchmark-contract.md](./docs/benchmark-contract.md)
-- [docs/guided-learning-path.md](./docs/guided-learning-path.md)
-- [docs/failure-injection.md](./docs/failure-injection.md)
-- [docs/final-system-spec.md](./docs/final-system-spec.md)
-- [results/comparison.md](./results/comparison.md)
-
----
-### ⚖️ Cross-Lab Comparison
-| Metric | Lab 1: Monolith | Lab 2: Persistent | Lab 3: Scaled Pub/Sub | Lab 11: Production |
-|---|---|---|---|---|
-| **Latency** | Low (single hop) | Low–Medium (DB tax) | Medium (Broker hop) | Medium–High (Global) |
-| **Throughput** | Moderate (1 node) | High (multiple nodes) | Very High (partitioned) | Global scale |
-| **Operational Complexity** | Low | Medium | High | Very High |
-| **Infrastructure Cost** | Low | Medium | High | Very High |
-| **Fault Tolerance** | None (SPOF) | Low–Medium | High | Very High (Geo) |
-
----
-[Get Started with Lab 01](./labs/lab-01-monolith-baseline/README.md)

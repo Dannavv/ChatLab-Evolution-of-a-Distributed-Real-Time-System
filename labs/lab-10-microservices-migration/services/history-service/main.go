@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -17,6 +21,8 @@ import (
 
 	"github.com/antigravity/chat-lab/shared/backend/protocol"
 	"github.com/antigravity/chat-lab/shared/backend/telemetry"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 var (
@@ -59,6 +65,11 @@ type statusResponse struct {
 }
 
 func main() {
+	if collectorURL := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); collectorURL != "" {
+		shutdown := telemetry.InitTracer("history-service", collectorURL)
+		defer shutdown()
+	}
+
 	dbConn = connectDB(dbURL)
 
 	http.HandleFunc("/history", handleHistory)
@@ -67,12 +78,28 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 
 	telemetry.StartMemoryTracking(2 * time.Second)
-	fmt.Printf("Lab 10 history service %s listening on :%s\n", nodeID, port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	
+	server := &http.Server{Addr: ":" + port}
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+		fmt.Printf("\nShutting down history service %s...\n", nodeID)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		server.Shutdown(ctx)
+	}()
+
+	fmt.Printf("Lab 11/10 Hardened History Service %s listening on :%s\n", nodeID, port)
+	log.Fatal(server.ListenAndServe())
 }
 
 func handleHistory(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
+	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	tr := otel.Tracer("history-service")
+	_, span := tr.Start(ctx, "handleHistory")
+	defer span.End()
 	room := r.URL.Query().Get("room")
 	if room == "" {
 		room = "general"
@@ -84,11 +111,16 @@ func handleHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	rows, err := dbConn.Query(
-		"SELECT message_id, user_id, room_id, content, trace_id, source_service, created_at FROM messages WHERE room_id = $1 ORDER BY created_at DESC LIMIT $2",
-		room,
-		limit,
-	)
+	var rows *sql.Rows
+	err := withRetry(3, 50*time.Millisecond, func() error {
+		var qErr error
+		rows, qErr = dbConn.Query(
+			"SELECT message_id, user_id, room_id, content, trace_id, source_service, created_at FROM messages WHERE room_id = $1 ORDER BY created_at DESC LIMIT $2",
+			room,
+			limit,
+		)
+		return qErr
+	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -143,4 +175,20 @@ func envOrDefault(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func withRetry(attempts int, baseBackoff time.Duration, fn func() error) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		if err = fn(); err == nil {
+			return nil
+		}
+		if i < attempts-1 {
+			// Jittered exponential backoff
+			jitter := time.Duration(rand.Int63n(int64(baseBackoff / 2)))
+			time.Sleep(baseBackoff + jitter)
+			baseBackoff *= 2
+		}
+	}
+	return err
 }

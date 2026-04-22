@@ -104,11 +104,11 @@ Lab 10 gives us the service boundaries. Lab 11 turns those ideas into a deployab
 
 ### 🚀 Commands
 ```bash
-# Start the full microservices mesh
-docker-compose up --build -d
+# Start the lab
+make up LAB=lab-10-microservices-migration
 
 # Run local benchmark
-python3 labs/lab-10-microservices-migration/benchmark/run.py
+make bench LAB=lab-10-microservices-migration
 ```
 
 ---

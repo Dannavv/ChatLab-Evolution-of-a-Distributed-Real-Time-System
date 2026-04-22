@@ -1,69 +1,68 @@
-# ChatLab Control Commands
+# ChatLab Control Guide
 
-This repo now uses one standard control script for setup, benchmarking, observability, reporting, and failure injection.
+This repository uses a standardized control system for environment setup, benchmarking, observability, and chaos testing.
 
-## Core Workflow
+## 🚀 Recommended Workflow (Makefile)
+
+The `Makefile` is the easiest way to interact with the labs.
 
 ```bash
-python3 scripts/chatlab.py list
-python3 scripts/chatlab.py up lab-01-monolith-baseline
-python3 scripts/chatlab.py observe lab-01-monolith-baseline
-python3 scripts/chatlab.py bench lab-01-monolith-baseline --scenario comparison_standard
-python3 scripts/chatlab.py down lab-01-monolith-baseline
+# Verify your environment dependencies
+make doctor
+
+# List all available labs
+make list
+
+# Start a specific lab
+make up LAB=lab-11-production-grade-blueprint
+
+# Run a chaos-injected benchmark (kills services mid-run)
+make bench LAB=lab-11-production-grade-blueprint chaos=true
+
+# Stop and cleanup
+make down LAB=lab-11-production-grade-blueprint
 ```
 
-## Benchmarking
+## ⌨️ Advanced CLI (chatlab.py)
 
+For more granular control, use the `scripts/chatlab.py` orchestrator directly.
+
+### Benchmarking
 Run the fair-comparison suite across all labs:
-
 ```bash
-python3 scripts/chatlab.py suite --scenario comparison_standard
+python3 scripts/chatlab.py suite
 ```
 
-Include Lab 11 in the suite when you want capstone evidence:
-
+Include Lab 11 in the suite:
 ```bash
-python3 scripts/chatlab.py suite --scenario comparison_standard --include-blueprint
+python3 scripts/chatlab.py suite --include-blueprint
 ```
 
-Run Lab 11 on demand:
-
+### Observability & Logs
 ```bash
-python3 scripts/chatlab.py bench lab-11-production-grade-blueprint --scenario comparison_standard
+# Show URLs for Grafana, Jaeger, and Chat UI
+make observe LAB=lab-11-production-grade-blueprint
+
+# Follow service logs
+python3 scripts/chatlab.py logs lab-11-production-grade-blueprint --follow
 ```
 
-Rebuild the aggregate comparison report:
-
+### Manual Failure Injection (Chaos)
+You can manually inject failures to test the system's resilience:
 ```bash
-python3 scripts/chatlab.py report
+# Kill a specific service
+python3 scripts/chatlab.py fail lab-11-production-grade-blueprint kill message-service
+
+# Inject network latency to Redis
+python3 scripts/chatlab.py fail lab-11-production-grade-blueprint delay redis --latency-ms 300
+
+# Heal a failure
+python3 scripts/chatlab.py fail lab-11-production-grade-blueprint heal redis
 ```
 
-Run local validation gates:
-
+## 🛠️ Validation Gates
+Run local validation gates to ensure system integrity:
 ```bash
-python3 scripts/chatlab.py validate
 python3 scripts/chatlab.py validate --kind workloads
-python3 scripts/chatlab.py validate --kind results
 python3 scripts/chatlab.py validate --kind slos
-```
-
-The interactive benchmark menu still exists:
-
-```bash
-python3 main.py
-```
-
-## Logs And Observability
-
-```bash
-python3 scripts/chatlab.py observe lab-06-chaos-and-resilience
-python3 scripts/chatlab.py logs lab-06-chaos-and-resilience --follow
-```
-
-## Failure Injection
-
-```bash
-python3 scripts/chatlab.py fail lab-06-chaos-and-resilience kill chat-worker
-python3 scripts/chatlab.py fail lab-06-chaos-and-resilience delay redis --latency-ms 300 --jitter-ms 50
-python3 scripts/chatlab.py fail lab-06-chaos-and-resilience heal redis
 ```

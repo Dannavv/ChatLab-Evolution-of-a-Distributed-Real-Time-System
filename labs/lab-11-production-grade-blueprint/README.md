@@ -1,61 +1,58 @@
-[🏠 Home](../../README.md) | [⬅️ Previous (Lab 10)](../lab-10-microservices-migration/README.md)
+# Lab 11: Production-Grade Blueprint (Hardened)
 
-# Lab 11: Production-Grade Blueprint
-## *Deployable Synthesis, Shared Controls, and Operational Readiness*
+This is the capstone of the ChatLab curriculum. It represents a system ready for real-world traffic, featuring advanced resilience, deep observability, and architectural rigor.
 
-**Purpose:** consolidate the strongest decisions from the earlier labs into one deployable local blueprint with durable storage, gateway routing, metrics, dashboards, and standardized operational controls.  
-**Hypothesis:** the best end-state is not the lowest-latency lab, but the most balanced system across latency, durability, observability, resilience, and operational clarity.
+## 🌟 Key Features
 
-### Objective
-This lab turns the curriculum into a runnable reference system. The goal is to end the series with a stack that a team could use as a serious starting point: gateway, persistence, broker, service separation, rate limiting, Prometheus, Grafana, and one standardized control script.
+### 1. Hardened Resilience
+- **Circuit Breakers:** The Gateway automatically trips if downstream services (`message-service` or `history-service`) fail, preventing cascading failures.
+- **Global Redis Rate Limiting:** Uses a Lua-scripted token bucket in Redis to enforce cross-replica rate limits.
+- **Jittered Retries:** Every service uses exponential backoff with jitter for database and Redis operations to survive transient outages.
 
-### Design Snapshot
+### 2. Deep Observability
+- **Distributed Tracing:** Fully instrumented with **OpenTelemetry**. Every message flow is traceable from the Gateway to the Database in **Jaeger**.
+- **Golden Signals:** Dashboards in Grafana track Latency, Traffic, Errors, and Saturation.
 
-| Lens | Answer |
-| --- | --- |
-| Problem | Earlier labs each solved one issue, but there was no single deployable stack that consolidated the best trade-offs. |
-| Limitation | The repo could be read as a progression without a concrete operational finish line. |
-| Solution | Package a capstone blueprint around gateway, message service, history service, Redis, Postgres, Prometheus, Grafana, and shared repo-level tooling. |
-| Trade-off | This is the most operationally complete stack in the repo, but also the most expensive and complex to run. |
-
-### What This Blueprint Includes
-- gateway-mediated routing
-- durable message storage
-- Redis-backed event distribution
-- standardized `scripts/chatlab.py` setup and benchmark commands
-- Prometheus metrics and Grafana dashboards
-- compatibility with the shared fair-comparison benchmark
-
-### Standard Commands
-
-```bash
-python3 scripts/chatlab.py up lab-11-production-grade-blueprint
-python3 scripts/chatlab.py observe lab-11-production-grade-blueprint
-python3 scripts/chatlab.py bench lab-11-production-grade-blueprint --scenario comparison_standard
-python3 scripts/chatlab.py down lab-11-production-grade-blueprint
-```
-
-### Suggested Failure Drills
-
-```bash
-python3 scripts/chatlab.py fail lab-11-production-grade-blueprint kill history-service
-python3 scripts/chatlab.py fail lab-11-production-grade-blueprint delay redis --latency-ms 300 --jitter-ms 50
-python3 scripts/chatlab.py fail lab-11-production-grade-blueprint heal redis
-```
-
-### Why This Is The Final Lab
-Lab 11 is the capstone because it is no longer asking "what if we add X?" It asks the more realistic question: "Which combination of decisions gives us a system we can actually operate, observe, and evolve?"
-
-### Real-World Mapping
-This lab is intentionally not modeled after one named company. It is closer to the kind of pragmatic blueprint a product team would assemble after learning from systems like WhatsApp, Netflix, Signal, and modern service-oriented platforms.
-
-### Commands
-
-```bash
-python3 scripts/chatlab.py up lab-11-production-grade-blueprint
-python3 scripts/chatlab.py logs lab-11-production-grade-blueprint --follow
-python3 scripts/chatlab.py report
-```
+### 3. Stability & Idempotency
+- **ULID Generation:** Messages use Lexicographically Sortable IDs (ULIDs) for global uniqueness and natural time-based sorting.
+- **Idempotency:** The `message-service` ensures that retried requests from the gateway do not create duplicate messages.
 
 ---
-[🏠 Return to Project Home](../../README.md)
+
+## 🚀 Operations Guide
+
+### Step 1: Start the Stack
+```bash
+make up LAB=lab-11-production-grade-blueprint
+```
+
+### Step 2: Observe
+View the health and traces of your system:
+```bash
+make observe LAB=lab-11-production-grade-blueprint
+```
+- **Chat UI:** http://localhost:8110
+- **Grafana:** http://localhost:3000
+- **Jaeger:** http://localhost:16686
+
+### Step 3: Chaos Benchmark
+Prove the system's resilience by injecting failures during a load test:
+```bash
+make bench LAB=lab-11-production-grade-blueprint chaos=true
+```
+
+## 📐 Architecture Diagram
+```mermaid
+graph TD
+    Client[Browser/k6] -->|WebSocket/HTTP| Gateway[Gateway Service]
+    Gateway -->|Redis Lua| RateLimit[(Redis Rate Limit)]
+    Gateway -->|HTTP + CB| MsgSvc[Message Service]
+    Gateway -->|HTTP + CB| HistSvc[History Service]
+    
+    MsgSvc -->|Retry| Postgres[(PostgreSQL)]
+    MsgSvc -->|Retry| RedisBus[(Redis Pub/Sub)]
+    
+    Gateway -.->|OTEL| Jaeger[Jaeger Tracing]
+    MsgSvc -.->|OTEL| Jaeger
+    HistSvc -.->|OTEL| Jaeger
+```

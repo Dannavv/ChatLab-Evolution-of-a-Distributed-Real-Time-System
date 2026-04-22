@@ -97,11 +97,14 @@ Lab 06 makes failure survivable, but it still focuses on messages as the main un
 
 ### 🚀 Commands
 ```bash
-# Start the lab with simulated chaos
-docker-compose up --build -d
+# Start the lab (recommended)
+make up LAB=lab-06-chaos-and-resilience
 
 # Run local benchmark
-python3 labs/lab-06-chaos-and-resilience/benchmark/run.py
+make bench LAB=lab-06-chaos-and-resilience
+
+# Or use the raw orchestrator
+python3 scripts/chatlab.py bench lab-06-chaos-and-resilience
 ```
 
 ---

@@ -585,11 +585,30 @@
       "lab": "lab-11-production-grade-blueprint",
       "scenario": "comparison_standard",
       "status": "OK",
-      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-11-production-grade-blueprint/benchmark/results/lab11__comparison_standard__20260422T104921Z",
-      "latency_ms": {},
-      "throughput_msgs_s": {},
-      "reliability": {},
-      "totals": {},
+      "run_dir": "/home/thearp/projects/chat-lab/labs/lab-11-production-grade-blueprint/benchmark/results/lab11__comparison_standard__20260422T153258Z",
+      "latency_ms": {
+        "p50": 7.908,
+        "p90": 9.04,
+        "p95": 9.11,
+        "p99": 9.841
+      },
+      "throughput_msgs_s": {
+        "avg": 43.522,
+        "peak": 101.0
+      },
+      "reliability": {
+        "error_rate_pct": 0.0,
+        "delivery_ratio_pct": 0.0,
+        "duplicate_ratio_pct": 0.0
+      },
+      "totals": {
+        "messages_total": 5919,
+        "dropped_total": 0,
+        "db_errors_total": 0,
+        "sent": 0,
+        "received": 0,
+        "duplicates": 0
+      },
       "consistency_model": {
         "target": "Service-coordinated durability with operational guardrails",
         "notes": "The write path is durable and visible through one deployable control plane with metrics and dashboards."

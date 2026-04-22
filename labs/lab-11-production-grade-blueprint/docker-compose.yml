@@ -26,6 +26,16 @@ services:
     networks:
       - chat-net
 
+  jaeger:
+    image: jaegertracing/all-in-one:1.55
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # UI
+      - "4318:4318" # OTLP HTTP
+    networks:
+      - chat-net
+
   gateway:
     build:
       context: ../../
@@ -39,6 +49,7 @@ services:
       EVENTS_CHANNEL: chat:events
       RATE_LIMIT_PER_SEC: 100
       RATE_LIMIT_BURST: 200
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
     ports:
       - "8110:8080"
     depends_on:
@@ -57,6 +68,7 @@ services:
       DB_URL: postgres://user:pass@db:5432/chat?sslmode=disable
       REDIS_URL: redis://redis:6379
       EVENTS_CHANNEL: chat:events
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
     depends_on:
       db:
         condition: service_healthy
@@ -73,6 +85,7 @@ services:
       NODE_ID: blueprint-history-01
       PORT: 8082
       DB_URL: postgres://user:pass@db:5432/chat?sslmode=disable
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
     depends_on:
       db:
         condition: service_healthy

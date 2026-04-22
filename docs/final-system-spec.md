@@ -1,6 +1,6 @@
 # ChatLab Final System Spec
 
-This document defines the capstone target architecture for the ChatLab curriculum. It is not a claim that the current repo is production-ready. It is the reference point that ties the labs into one coherent system-design story and now maps directly to the Lab 11 production-grade blueprint.
+This document defines the capstone target architecture for the ChatLab curriculum. It serves as the reference point that ties the labs into one coherent system-design story and now maps directly to the **Lab 11 Hardened Production Blueprint**.
 
 ## Goal
 
@@ -11,7 +11,7 @@ Build a real-time chat platform that:
 - exposes enough telemetry to explain latency, backlog, and delivery outcomes
 - makes security, cost, and consistency trade-offs explicit
 
-## Proposed Service Topology
+## Implemented Service Topology
 
 ```text
 Client
@@ -119,7 +119,7 @@ The repo should eventually support a layered test story:
 | Unit tests | local parsing, routing, queue, auth, and crypto logic |
 | Integration tests | service-to-service behavior with broker, DB, and storage |
 | Load tests | latency, throughput, backlog, and error-rate behavior |
-| Chaos tests | retries, circuit breakers, dead-letter flow, and recovery time |
+| Chaos tests | **(Implemented)** Automated retries, circuit breakers, and Recovery Time Objective (RTO) |
 | Security tests | auth bypass, replay handling, rate limiting, and key misuse cases |
 
 ## Cost Model
