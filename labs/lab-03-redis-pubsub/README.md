@@ -29,14 +29,20 @@ In Lab 01 and 02, our "Broadcast Loop" was synchronous and local.
 ![Lab 03 Architecture](assets/benchmarks/architecture.png)
 *Figure 1: The Distributed Architecture. Multiple chat nodes connected via Redis Pub/Sub.*
 
-### 🏛️ System Architecture (Structured View)
-```text
-Client
-  -> regional chat node
-     -> publish message to Redis channel
-     -> subscribed chat nodes receive the event
-     -> each node broadcasts to its local WebSocket clients
+### 🏛️ System Architecture
+```mermaid
+graph TD
+    C1[Client 1] --> Srv1[Chat Node 1]
+    C2[Client 2] --> Srv2[Chat Node 2]
+    LB[Load Balancer] --> Srv1
+    LB --> Srv2
+    Srv1 <--> Redis[(Redis Pub/Sub)]
+    Srv2 <--> Redis
+    Srv1 --> DB[(PostgreSQL)]
+    Srv2 --> DB
 ```
+
+**Data Flow:** Incoming client requests are distributed by a Load Balancer. Servers publish messages to a shared Redis Pub/Sub bus, which replicates the events to all instances. This allows clients on different nodes to share the same chat room.
 
 ### 🔄 Request Flow
 1. A client sends a chat message to one chat node.
@@ -77,10 +83,10 @@ python3 labs/lab-03-redis-pubsub/benchmark/run.py --scenario redis_scaling
 ### 🧾 Interpretation
 Performance changes here because the system is no longer trapped inside one process boundary. Redis adds broker overhead, but that extra hop buys something more valuable: users connected to different replicas now share one distributed chat room.
 
-### 🚧 Limitations
-- Redis becomes a central coordination dependency.
-- Ordering is now bounded by broker and subscriber timing rather than one local loop.
-- Persistence and distribution are still tightly coupled inside one overall application domain.
+### 🛡️ Hardening Roadmap
+1. **Durable Messaging**: Replacing Redis Pub/Sub with **Kafka** for persistence and replay (see Lab 05).
+2. **Backpressure**: Adding internal queues to handle broadcast spikes (see Lab 04).
+3. **Partitioning**: Sharding the Redis bus or Kafka topics by room ID to avoid broker bottlenecks.
 
 ---
 

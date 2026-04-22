@@ -3,7 +3,66 @@
 
 ![ChatLab Cover](./assets/cover.png)
 
+## 📑 Executive Summary
+The ChatLab “Evolution” repository shows a clear stepwise build-out of a chat system. This curriculum transitions from a simple stateful monolith to a global, multi-region distributed architecture. Each lab is hardened to introduce industry-standard patterns: durable message logs (Kafka), CAP-theorem-aware design (AP preference), stateless service architectures, and deep observability (Tracing, Metrics, Logs).
+
 ChatLab is a distributed-systems learning repo built around one evolving product: a real-time chat system. Each lab introduces one dominant systems problem, benchmarks the trade-off with the same comparable workload, and leaves behind a runnable architecture you can inspect locally.
+
+### 🏛️ The Systematic Evolution
+The curriculum follows a stepwise build-out of a production-grade system, transitioning from a simple stateful monolith to a global, multi-region distributed architecture.
+
+```mermaid
+graph TD
+    subgraph "Phase 1: Foundations"
+      L1[Lab 01: Monolith] -->|Add Persistence| L2[Lab 02: Durable DB]
+    end
+    subgraph "Phase 2: Runtime Scaling"
+      L2 -->|Add Pub/Sub| L3[Lab 03: Redis Scaling]
+      L3 -->|Backpressure| L4[Lab 04: Scalable Monolith]
+    end
+    subgraph "Phase 3: Cloud-Native Reliability"
+      L4 -->|Async Ingest| L5[Lab 05: Task Queues]
+      L5 -->|Resilience| L6[Lab 06: Chaos/Mesh]
+    end
+    subgraph "Phase 4: Real-Time State"
+      L6 -->|Presence| L7[Lab 07: Real-Time Edge]
+      L7 -->|Multi-Region| L8[Lab 08: Global Backbone]
+    end
+    subgraph "Phase 5: Maturity"
+      L8 -->|Security| L9[Lab 09: E2EE]
+      L9 -->|Services| L10[Lab 10: Microservices]
+      L10 -->|Production| L11[Lab 11: Final Blueprint]
+    end
+```
+
+### 🌍 Target Production Architecture
+For a global scale, ChatLab evolves into a multi-region, geo-redundant system.
+
+```mermaid
+flowchart TB
+    subgraph Region1 [US-East]
+      APIGW1((API Gateway))
+      Auth1((Auth Svc))
+      Chat1((Chat Svc))
+      Kafka1[(Kafka Cluster)]
+      DB1[(DB Cluster)]
+    end
+    subgraph Region2 [EU-Central]
+      APIGW2((API Gateway))
+      Auth2((Auth Svc))
+      Chat2((Chat Svc))
+      Kafka2[(Kafka Cluster)]
+      DB2[(DB Cluster)]
+    end
+    CDN((Global LB / CDN))
+    Clients((Clients Worldwide))
+    Clients --> CDN
+    CDN --> APIGW1
+    CDN --> APIGW2
+    Chat1 <--> Kafka1
+    Chat2 <--> Kafka2
+    Kafka1 <-->|MirrorMaker| Kafka2
+```
 
 This repo is benchmarked on a developer machine. It is meant for fair architectural comparison and systems learning, not for unsupported claims about internet-scale production capacity.
 
@@ -106,6 +165,16 @@ The workflow and suggested drills are documented in [docs/failure-injection.md](
 - [docs/failure-injection.md](./docs/failure-injection.md)
 - [docs/final-system-spec.md](./docs/final-system-spec.md)
 - [results/comparison.md](./results/comparison.md)
+
+---
+### ⚖️ Cross-Lab Comparison
+| Metric | Lab 1: Monolith | Lab 2: Persistent | Lab 3: Scaled Pub/Sub | Lab 11: Production |
+|---|---|---|---|---|
+| **Latency** | Low (single hop) | Low–Medium (DB tax) | Medium (Broker hop) | Medium–High (Global) |
+| **Throughput** | Moderate (1 node) | High (multiple nodes) | Very High (partitioned) | Global scale |
+| **Operational Complexity** | Low | Medium | High | Very High |
+| **Infrastructure Cost** | Low | Medium | High | Very High |
+| **Fault Tolerance** | None (SPOF) | Low–Medium | High | Very High (Geo) |
 
 ---
 [Get Started with Lab 01](./labs/lab-01-monolith-baseline/README.md)

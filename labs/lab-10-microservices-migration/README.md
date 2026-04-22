@@ -32,14 +32,20 @@ In previous labs, our "Server" still did everything.
 ![Lab 10 Architecture](assets/benchmarks/architecture.png)
 *Figure 1: The Microservices Mesh. Client -> Gateway -> [Service Discovery] -> Message/History Service.*
 
-### 🏛️ System Architecture (Structured View)
-```text
-Client
-  -> gateway
-     -> route writes to message service
-     -> route reads to history service
-     -> coordinate with shared infrastructure
+### 🏛️ System Architecture
+```mermaid
+graph TD
+    Client[Client App] --> GW[API Gateway]
+    subgraph "Service Mesh"
+    GW --> AuthSvc[Auth Service]
+    GW --> MsgSvc[Message Service]
+    GW --> HistSvc[History Service]
+    MsgSvc <--> Kafka[(Kafka Cluster)]
+    HistSvc <--> DB[(PostgreSQL Cluster)]
+    end
 ```
+
+**Data Flow:** Incoming client requests are routed through an API Gateway. Authentication, Messaging, and History are isolated into separate services, ensuring that a failure in one (e.g., History read pressure) does not impact the real-time delivery of messages.
 
 ### 🔄 Request Flow
 1. A client connects to the gateway.
@@ -80,10 +86,10 @@ python3 labs/lab-10-microservices-migration/benchmark/run.py --scenario microser
 ### 🧾 Interpretation
 Performance changes because isolation is buying independence with additional network coordination. The right question is no longer "is it faster?" but "does the system fail and scale in a way that matches the product and team boundaries we need?"
 
-### 🚧 Limitations
-- More services mean more contracts, more deployment edges, and more observability burden.
-- The gateway becomes a very important control point.
-- Microservices improve isolation, but they do not remove the need for careful data ownership design.
+### 🛡️ Hardening Roadmap
+1. **Distributed Tracing**: Implementing **OpenTelemetry** with Jaeger to track request flow across the mesh.
+2. **Kubernetes Orchestration**: Moving from Docker Compose to **K8s** with liveness/readiness probes.
+3. **Service Mesh**: Introducing **Istio/Linkerd** for mutual TLS and advanced traffic shaping.
 
 ---
 

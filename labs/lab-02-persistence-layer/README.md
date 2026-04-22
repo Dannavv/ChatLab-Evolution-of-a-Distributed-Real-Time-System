@@ -19,17 +19,18 @@ This lab upgrades the monolith from volatile in-memory messaging to database-bac
 ### 🧩 Problem Statement
 Lab 01 is fast, but every restart wipes out all chat history. Lab 02 solves that limitation by introducing a persistence layer so messages can outlive the server process, while also exposing the cost of that decision in latency, throughput, and operational complexity.
 
-### 🏛️ System Architecture (Structured View)
-```text
-Client
-  -> WebSocket connection on /ws
-  -> Chat server (single Go process)
-     -> in-memory client registry for active sockets
-     -> asynchronous INSERT into PostgreSQL messages table
-     -> /history endpoint reads last 50 messages by room
-     -> Prometheus metrics on /metrics
-  -> broadcast response to connected clients
+### 🏛️ System Architecture
+```mermaid
+graph TD
+    Client[Client App] -->|WebSocket| Srv[Chat Server (Go)]
+    subgraph "Persistent Monolith"
+    Srv -->|Lock/Write| Mem[(In-Memory Active Sockets)]
+    Srv -->|Async INSERT| DB[(PostgreSQL)]
+    Srv -->|Scrape| Prom[Prometheus]
+    end
 ```
+
+**Data Flow:** Incoming client requests are handled by the server. Messages are asynchronously written to PostgreSQL for durability while simultaneously being broadcast to all active in-memory connections.
 
 ### 📌 Assumptions
 - Single chat server node and single PostgreSQL node.
@@ -69,6 +70,11 @@ In Lab 01, our chat was "Volatile." If the server crashed or restarted, every me
 
 ### 🟢 The Approach
 We introduce **PostgreSQL** to the architecture. Every incoming message is now persisted to a `messages` table before being broadcast. This lab allows us to measure the **"Persistence Tax"**—the exact latency penalty incurred by moving from in-memory state to a durable database.
+
+### 🛡️ Hardening Roadmap
+1. **Durable Broker**: Transitioning from direct SQL writes to a distributed log like **Kafka** (see Lab 05).
+2. **Horizontal Scaling**: Introducing a Load Balancer (Nginx) and multiple app instances (implemented in this lab).
+3. **Partitioning**: Indexing and sharding the message table for high throughput.
 
 ---
 

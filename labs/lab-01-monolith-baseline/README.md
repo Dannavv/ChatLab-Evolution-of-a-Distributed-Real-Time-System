@@ -15,16 +15,17 @@ There is no earlier implementation lab before Lab 01, so this is the starting po
 ### 🧩 Problem Statement
 The fastest possible version of the system is not automatically the most useful one. Lab 01 solves the "what is our starting point?" problem by intentionally using a minimal architecture so we can observe the raw benefits of in-memory state and the hard limitations that come with volatile storage and a single shared lock.
 
-### 🏛️ System Architecture (Structured View)
-```text
-Client
-  -> WebSocket connection on /ws
-  -> Chat server (single Go process)
-     -> in-memory client registry: map[*websocket.Conn]bool
-     -> synchronized broadcast path: sync.Mutex
-     -> Prometheus metrics on /metrics
-  -> broadcast response to all connected clients
+### 🏛️ System Architecture
+```mermaid
+graph TD
+    Client[Client App] -->|WebSocket| Srv[Chat Server (Go)]
+    subgraph "Single Node Monolith"
+    Srv -->|Lock/Write| Mem[(In-Memory State)]
+    Srv -->|Scrape| Prom[Prometheus]
+    end
 ```
+
+**Data Flow:** The client sends chat messages via WebSocket. The server processes them, updates an in-memory client registry (guarded by a `sync.Mutex`), and broadcasts the message to all connected clients.
 
 ### 📌 Assumptions
 - Single node only; there is no clustering or horizontal scaling.
@@ -57,6 +58,12 @@ Client
 In this baseline, user connections and room state are stored entirely in the server's local RAM. 
 - **The Risk**: Any server restart results in **100% Data Loss**.
 - **The Scaling Limit**: Since state is local, horizontal scaling is impossible.
+
+### 🛡️ Hardening Roadmap
+To make this monolith more resilient (as per industry best practices), we focus on:
+1. **Stateless Design**: Moving sessions/chat logs to an external store (see Lab 02/03).
+2. **Observability**: Adding structured JSON logs and health endpoints (implemented in this lab).
+3. **Graceful Shutdown**: Handling `SIGTERM` to prevent message loss during deploys.
 
 ---
 

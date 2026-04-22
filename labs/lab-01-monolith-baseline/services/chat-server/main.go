@@ -1,11 +1,14 @@
 package main
 
-import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -26,19 +29,43 @@ var (
 )
 
 func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/index.html")
 	})
-	http.HandleFunc("/ws", handleWebSocket)
-	http.HandleFunc("/send", handleSendMessage)
-	http.HandleFunc("/health", handleHealth)
-	http.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc("/ws", handleWebSocket)
+	mux.HandleFunc("/send", handleSendMessage)
+	mux.HandleFunc("/health", handleHealth)
+	mux.Handle("/metrics", promhttp.Handler())
 
 	// Start standard memory tracking
 	telemetry.StartMemoryTracking(2 * time.Second)
 
-	fmt.Printf("Chat Server %s starting on :8080\n", nodeID)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
+
+	go func() {
+		fmt.Printf("Chat Server %s starting on :8080\n", nodeID)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	log.Println("Server exiting")
 }
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
